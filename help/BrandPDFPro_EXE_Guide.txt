@@ -1,0 +1,76 @@
+BrandPDF Pro - EXE Generation Process
+
+1. Install Prerequisites
+
+-   Install JDK 21
+-   Set JAVA_HOME
+-   Add %JAVA_HOME%to PATH
+
+Verify: java -version echo %JAVA_HOME% jpackage –version mvn -version
+
+2. Configure pom.xml
+
+Include: - javafx-maven-plugin - maven-shade-plugin
+
+The shade plugin creates a runnable fat JAR with all dependencies.
+
+3. Build Fat JAR
+
+cd D:_V1
+
+mvn clean package
+
+Verify: dir target
+
+Expected: - brandpdfpro-1.0.0.jar - original-brandpdfpro-1.0.0.jar
+
+4. Create Application Icon
+
+Place icon here:
+
+assets.ico
+
+Use a valid Windows ICO file.
+
+5. Generate App Image
+
+mkdir release
+
+jpackage ^ –type app-image ^ –name BrandPDFPro ^ –input target ^
+–main-jar brandpdfpro-1.0.0.jar ^ –main-class
+com.brandpdfpro.app.BrandPDFProApp ^ –icon assets.ico ^ –dest release
+
+6. Verify Output
+
+release └── BrandPDFPro ├── BrandPDFPro.exe ├── app └── runtime
+
+7. Test EXE
+
+Run:
+
+release.exe
+
+Verify: - Application opens - Settings work - PDF generation works -
+Batch processing works - Templates load correctly
+
+8. Create Release ZIP
+
+Example:
+
+BrandPDFPro-v1.0.0.zip
+
+Zip the entire BrandPDFPro folder generated inside release.
+
+Versioning Guide
+
+MAJOR.MINOR.PATCH
+
+v1.0.0 Initial Release v1.0.1 Bug Fix v1.1.0 New Features v2.0.0 Major
+Changes
+
+Release Checklist
+
+[ ] Update version in pom.xml [ ] mvn clean package [ ] Verify fat JAR
+generated [ ] Run jpackage [ ] Test BrandPDFPro.exe [ ] Verify icon [ ]
+Verify settings [ ] Verify PDF generation [ ] Verify batch processing [
+] Create ZIP package [ ] Publish release

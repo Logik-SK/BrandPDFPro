@@ -1,0 +1,248 @@
+BrandPDFPro Git Workflow Notes
+
+==================================================
+1. INITIAL SETUP (ONE-TIME)
+==================================================
+
+Create Git Repository
+git init
+
+Definition:
+Creates a new local Git repository.
+
+Rename Default Branch
+git branch -M main
+
+Definition:
+Renames current branch to main.
+
+Connect GitHub Repository
+git remote add origin https://github.com/Logik-SK/BrandPDFPro.git
+
+Definition:
+Connects local repository to GitHub.
+
+==================================================
+2. BASIC GIT COMMANDS
+==================================================
+
+Check Status
+git status
+
+Definition:
+Shows modified, staged, deleted, and untracked files.
+
+View Branches
+git branch
+
+Definition:
+Lists all local branches.
+
+View Commit History
+git log --oneline
+
+Definition:
+Shows compact commit history.
+
+==================================================
+3. STAGING & COMMITTING
+==================================================
+
+Stage All Changes
+git add .
+
+Definition:
+Adds all modified files to staging area.
+
+Commit Changes
+git commit -m "feat: add header processing"
+
+Definition:
+Saves changes to Git history.
+
+==================================================
+4. PUSH TO GITHUB
+==================================================
+
+Push Current Branch
+git push
+
+Definition:
+Uploads commits to GitHub.
+
+First Push of a Branch
+git push -u origin develop
+
+Definition:
+Pushes branch and creates tracking relationship.
+
+==================================================
+5. BRANCH MANAGEMENT
+==================================================
+
+Create New Branch
+git checkout -b feature/page-numbering
+
+Definition:
+Creates and switches to a new branch.
+
+Switch Branch
+git checkout develop
+
+Definition:
+Moves to an existing branch.
+
+Delete Local Branch
+git branch -d feature/page-numbering
+
+Definition:
+Deletes a branch after merge.
+
+==================================================
+6. PROFESSIONAL BRANCH STRUCTURE
+==================================================
+
+main
+Purpose:
+Production-ready code only.
+Tagged releases live here.
+
+develop
+Purpose:
+Active development branch.
+
+feature/*
+Purpose:
+Individual feature development.
+
+Examples:
+feature/header-footer-engine
+feature/page-numbering
+feature/watermark
+
+release/*
+Purpose:
+Testing and release preparation.
+
+Examples:
+release/v1.0.0
+release/v2.0.0
+
+hotfix/*
+Purpose:
+Emergency fixes for released versions.
+
+Example:
+hotfix/v1.0.1
+
+==================================================
+7. BRANDPDFPRO DEVELOPMENT FLOW
+==================================================
+
+Start New Feature
+
+git checkout develop
+git pull
+git checkout -b feature/watermark
+
+Work on code...
+
+git add .
+git commit -m "feat: add watermark support"
+git push -u origin feature/watermark
+
+--------------------------------------------------
+
+Merge Feature into Develop
+
+git checkout develop
+git merge feature/watermark
+git push
+
+Delete Feature Branch
+
+git branch -d feature/watermark
+
+==================================================
+8. CREATE A RELEASE
+==================================================
+
+git checkout develop
+git checkout -b release/v1.0.0
+
+Purpose:
+Testing and bug fixing only.
+No new features.
+
+==================================================
+9. RELEASE TO PRODUCTION
+==================================================
+
+git checkout main
+git merge release/v1.0.0
+
+Create Version Tag
+
+git tag -a v1.0.0 -m "BrandPDFPro V1.0.0"
+git push origin main --tags
+
+==================================================
+10. USEFUL COMMANDS
+==================================================
+
+View Remote Repository
+git remote -v
+
+Download Latest Changes
+git pull
+
+Upload Changes
+git push
+
+Compare Changes
+git diff
+
+See Tracked Files
+git ls-files
+
+==================================================
+11. COMMIT MESSAGE STANDARDS
+==================================================
+
+New Feature
+feat: add footer template support
+
+Bug Fix
+fix: resolve header overlap issue
+
+Documentation
+docs: update README
+
+Refactoring
+refactor: simplify PDF processing service
+
+Maintenance
+chore: update gitignore
+
+==================================================
+12. RELEASE STRATEGY
+==================================================
+
+main
+ ├── v1.0.0
+ ├── v1.1.0
+ ├── v1.2.0
+ ├── v2.0.0
+ └── v2.1.0
+
+develop
+ └── Current Development
+
+feature/*
+ └── New Features
+
+release/*
+ └── Release Preparation
+
+hotfix/*
+ └── Production Fixes
