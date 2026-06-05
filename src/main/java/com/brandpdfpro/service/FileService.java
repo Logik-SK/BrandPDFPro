@@ -26,4 +26,13 @@ public class FileService {
         chooser.setTitle("Select Output Folder");
         return chooser.showDialog(stage);
     }
+
+    public File getDefaultOutputFolder() {
+        String documentsPath = System.getProperty("user.home") + File.separator + "Downloads";
+        File outputFolder = new File(documentsPath, "BrandPDFPro_Pdfs");
+        if (!outputFolder.exists()) {
+            outputFolder.mkdirs();
+        }
+        return outputFolder;
+    }
 }

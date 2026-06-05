@@ -6,7 +6,7 @@ public class BatchProcessorService {
 
     private final PdfProcessorService pdfProcessorService = new PdfProcessorService();
 
-    public int processFolder(File headerFile, File footerFile, File inputFolder, File outputFolder, boolean addPageNumbers) throws Exception {
+    public int processFolder(File headerFile, File footerFile, File inputFolder, File outputFolder, boolean addPageNumbers, boolean addDocumentTag,String documentTag) throws Exception {
         File[] pdfFiles = inputFolder.listFiles(file -> file.isFile() && file.getName().toLowerCase().endsWith(".pdf"));
 
         if (pdfFiles == null || pdfFiles.length == 0) {
@@ -15,7 +15,7 @@ public class BatchProcessorService {
 
         for (File pdfFile : pdfFiles) {
             System.out.println("Processing : " + pdfFile.getName());
-            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers);
+            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag);
         }
 
         return pdfFiles.length;
