@@ -1,23 +1,68 @@
 package com.brandpdfpro.service;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
 
 public class AppConfigService {
 
-    private static final String CONFIG_FILE = "config/application.properties";
+    private static final String CONFIG_DIR = "config";
+    private static final String APPLICATION_FILE = "application.properties";
+
     private final Properties properties = new Properties();
 
     public AppConfigService() {
-        loadProperties();
+        initializeConfig();
     }
 
-    private void loadProperties() {
-        try (FileInputStream inputStream = new FileInputStream(CONFIG_FILE)) {
-            properties.load(inputStream);
+    private void initializeConfig() {
+        try {
+            createConfigDirectory();
+
+            File applicationFile = getApplicationFile();
+            if (!applicationFile.exists()) {
+                createDefaultApplicationConfig(applicationFile);
+            }
+
+            loadProperties();
         } catch (IOException ex) {
-            throw new RuntimeException("Unable to load application configuration.", ex);
+            throw new RuntimeException("Unable to initialize application configuration.", ex);
+        }
+    }
+
+    private void createConfigDirectory() {
+        File directory = new File(CONFIG_DIR);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+    }
+
+    private File getApplicationFile() {
+        return new File(CONFIG_DIR, APPLICATION_FILE);
+    }
+
+    private void createDefaultApplicationConfig(File applicationFile) throws IOException {
+        Properties defaults = new Properties();
+
+        defaults.setProperty("app.name", "BrandPDF Pro");
+        defaults.setProperty("app.version", "1.1.0");
+        defaults.setProperty("app.width", "950");
+        defaults.setProperty("app.height", "950");
+        defaults.setProperty("preview.width", "400");
+        defaults.setProperty("preview.height", "80");
+        defaults.setProperty("default.header.height", "80");
+        defaults.setProperty("default.footer.height", "80");
+
+        try (FileOutputStream outputStream = new FileOutputStream(applicationFile)) {
+            defaults.store(outputStream, "BrandPDF Pro Application Configuration");
+        }
+    }
+
+    private void loadProperties() throws IOException {
+        try (FileInputStream inputStream = new FileInputStream(getApplicationFile())) {
+            properties.load(inputStream);
         }
     }
 
@@ -30,7 +75,7 @@ public class AppConfigService {
     }
 
     public String getAppVersion() {
-        return properties.getProperty("app.version", "1.0.0");
+        return properties.getProperty("app.version", "1.1.0");
     }
 
     public String getAppTitle() {

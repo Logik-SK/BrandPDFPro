@@ -132,8 +132,8 @@ jpackage ^
  --type app-image ^
  --name BrandPDFPro ^
  --input target ^
- --main-jar brandpdfpro-1.0.0.jar ^
- --main-class com.brandpdfpro.app.BrandPDFProApp ^
+ --main-jar brandpdfpro-1.1.0.jar ^
+ --main-class com.brandpdfpro.app.Launcher ^
  --icon assets\brandpdfpro.ico ^
  --dest release
 Output
