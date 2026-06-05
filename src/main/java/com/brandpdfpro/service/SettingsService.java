@@ -13,6 +13,7 @@ public class SettingsService {
     private static final String HEADER_HEIGHT = "header.height";
     private static final String FOOTER_HEIGHT = "footer.height";
     private static final String ADD_PAGE_NUMBERS = "add.page.numbers";
+    private static final String COMPANY_NAME = "company.name";
 
     private final Properties properties = new Properties();
 
@@ -50,6 +51,7 @@ public class SettingsService {
         defaults.setProperty(HEADER_HEIGHT, "80");
         defaults.setProperty(FOOTER_HEIGHT, "80");
         defaults.setProperty(ADD_PAGE_NUMBERS, "true");
+        defaults.setProperty(COMPANY_NAME, "BrandPDFPro");
 
         try (FileOutputStream outputStream = new FileOutputStream(settingsFile)) {
             defaults.store(outputStream, "BrandPDF Pro Settings");
@@ -90,5 +92,12 @@ public class SettingsService {
 
     public void setPageNumberEnabled(boolean value) {
         properties.setProperty(ADD_PAGE_NUMBERS, String.valueOf(value));
+    }
+    //for company name
+    public void setCompanyName(String value) {
+        properties.setProperty(COMPANY_NAME, String.valueOf(value));
+    }
+    public String getCompanyName() {
+        return (properties.getProperty(COMPANY_NAME, "BrandPDFPro"));
     }
 }

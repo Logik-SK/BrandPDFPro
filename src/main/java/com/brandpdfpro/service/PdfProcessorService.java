@@ -53,7 +53,7 @@ public class PdfProcessorService {
 
             }
 
-            String outputFileName = removeExtension(pdfFile.getName()) + "_BRANDED.pdf";
+            String outputFileName = removeExtension(pdfFile.getName()) + "_"+settingsService.getCompanyName()+".pdf";
             File outputFile = getUniqueOutputFile(outputFolder, outputFileName);
             //File outputFile = new File(outputFolder, outputFileName);
             document.save(outputFile);

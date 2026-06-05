@@ -29,7 +29,7 @@ public class FileService {
 
     public File getDefaultOutputFolder() {
         String documentsPath = System.getProperty("user.home") + File.separator + "Downloads";
-        File outputFolder = new File(documentsPath, "BrandPDFPro");
+        File outputFolder = new File(documentsPath, "BrandPDFPro_Pdfs");
         if (!outputFolder.exists()) {
             outputFolder.mkdirs();
         }
