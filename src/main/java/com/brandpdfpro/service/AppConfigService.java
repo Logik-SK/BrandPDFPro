@@ -82,7 +82,7 @@ public class AppConfigService {
         Properties defaults = new Properties();
 
         defaults.setProperty("app.name", "BrandPDF Pro");
-        defaults.setProperty("app.version", "1.2.0");
+        defaults.setProperty("app.version", "1.2.1");
         defaults.setProperty("app.width", "950");
         defaults.setProperty("app.height", "750");
         defaults.setProperty("preview.width", "400");
@@ -126,7 +126,7 @@ public class AppConfigService {
      * @return the application version string, defaulting to "1.1.0"
      */
     public String getAppVersion() {
-        return properties.getProperty("app.version", "1.2.0");
+        return properties.getProperty("app.version", "1.2.1");
     }
 
     /**

@@ -57,10 +57,15 @@ public class PdfProcessorService {
      * @throws IOException if file read/write mutations on file streams fail
      */
     public void processPdf(File headerFile, File footerFile, File pdfFile, File outputFolder, boolean addPageNumbers,
-                           boolean addDocumentTag, String documentTag, boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent) throws IOException {
+                           boolean addDocumentTag, String documentTag, boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent, boolean increasePageHeight) throws IOException {
 
         if (preventOverlap) {
-            processPdfWithOverlapPrevention(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, scaleTheContent, compressTheContent);
+            if (increasePageHeight) {
+                processPdfWithPageExpansion(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag);
+
+            } else {
+                processPdfWithOverlapPrevention(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, scaleTheContent, compressTheContent);
+            }
         } else {
             processPdfNormally(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag);
         }
@@ -349,6 +354,96 @@ public class PdfProcessorService {
     private float calculateScaleFactor(float pageHeight, float headerHeight, float footerHeight) {
         float availableHeight = pageHeight - headerHeight - footerHeight;
         return availableHeight / pageHeight;
+    }
+
+    /**
+     * Processes a PDF document using page canvas expansion to prevent branding overlap.
+     * <p>
+     * Instead of scaling down or compressing the original document layers, this mode
+     * mathematically stretches the physical height boundaries of each page canvas by
+     * adding the exact header and footer height values. It then shifts the original
+     * content upward via an affine translation matrix, leaving pristine, uncompressed
+     * gaps at the top and bottom explicitly for the brand graphics.
+     * </p>
+     *
+     * @param headerFile     the physical image file applied as the template header layer
+     * @param footerFile     the physical image file applied as the template footer layer
+     * @param pdfFile        the origin source PDF document file reference
+     * @param outputFolder   the destination directory target where modifications are saved
+     * @param addPageNumbers toggle flag specifying whether dynamic page indices are stamped
+     * @param addDocumentTag toggle flag specifying whether dynamic security tags are stamped
+     * @param documentTag    the descriptive text classification metadata tag applied to files
+     * @throws IOException if file read/write mutations on underlying file streams fail
+     */
+    private void processPdfWithPageExpansion(File headerFile, File footerFile, File pdfFile, File outputFolder,
+                                             boolean addPageNumbers, boolean addDocumentTag, String documentTag) throws IOException {
+
+        validateRequest(headerFile, footerFile, pdfFile, outputFolder);
+
+        try (PDDocument sourceDocument = Loader.loadPDF(pdfFile);
+             PDDocument outputDocument = new PDDocument()) {
+
+            System.out.println("Increase Page Size Mode Enabled");
+
+            settingsService.loadSettings();
+            float headerHeight = settingsService.getHeaderHeight();
+            float footerHeight = settingsService.getFooterHeight();
+
+            PDImageXObject headerImage = PDImageXObject.createFromFile(headerFile.getAbsolutePath(), outputDocument);
+            PDImageXObject footerImage = PDImageXObject.createFromFile(footerFile.getAbsolutePath(), outputDocument);
+
+            LayerUtility layerUtility = new LayerUtility(outputDocument);
+            int totalPages = sourceDocument.getNumberOfPages();
+            int currentPage = 1;
+
+            for (PDPage sourcePage : sourceDocument.getPages()) {
+                PDRectangle originalPageSize = sourcePage.getMediaBox();
+                float pageWidth = originalPageSize.getWidth();
+                float pageHeight = originalPageSize.getHeight();
+
+                // Compute expanded canvas boundaries
+                float newPageHeight = pageHeight + headerHeight + footerHeight;
+                PDRectangle expandedPageSize = new PDRectangle(pageWidth, newPageHeight);
+
+                PDPage newPage = new PDPage(expandedPageSize);
+                outputDocument.addPage(newPage);
+
+                PDFormXObject pageForm = layerUtility.importPageAsForm(sourceDocument, sourcePage);
+
+                try (PDPageContentStream contentStream = new PDPageContentStream(outputDocument, newPage)) {
+                    contentStream.saveGraphicsState();
+
+                    // Shift the original content block precisely above the new footer area
+                    AffineTransform transform = new AffineTransform();
+                    transform.translate(0, footerHeight);
+                    contentStream.transform(new Matrix(transform));
+
+                    contentStream.drawForm(pageForm);
+                    contentStream.restoreGraphicsState();
+                }
+
+                // Append static overlay layouts on the fresh canvas boundaries
+                addHeader(outputDocument, newPage, headerImage);
+                addFooter(outputDocument, newPage, footerImage);
+
+                if (addPageNumbers) {
+                    addPageNumber(outputDocument, newPage, currentPage, totalPages);
+                }
+
+                if (addDocumentTag) {
+                    addDocumentTag(outputDocument, newPage, documentTag);
+                }
+
+                currentPage++;
+            }
+
+            // Resolve file conflicts and save output
+            String outputFileName = removeExtension(pdfFile.getName()) + "_" + settingsService.getCompanyName() + ".pdf";
+            File outputFile = getUniqueOutputFile(outputFolder, outputFileName);
+
+            outputDocument.save(outputFile);
+            System.out.println("PDF Generated Successfully : " + outputFile.getAbsolutePath());
+        }
     }
 
 }
