@@ -15,6 +15,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import javax.swing.text.html.parser.DTDConstants;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
@@ -525,8 +526,8 @@ public class BrandPDFProApp extends Application {
      * in alignment with UI selections.
      */
     private void updateDocumentTagControls() {
-        boolean enabled = documentTagCheckBox.isSelected();
-        documentTagComboBox.setDisable(!enabled);
+//        boolean enabled = documentTagCheckBox.isSelected();
+//        documentTagComboBox.setDisable(!enabled);
     }
 
     /**
