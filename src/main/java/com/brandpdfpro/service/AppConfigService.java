@@ -126,7 +126,7 @@ public class AppConfigService {
      * @return the application version string, defaulting to "1.1.0"
      */
     public String getAppVersion() {
-        return properties.getProperty("app.version", "1.1.0");
+        return properties.getProperty("app.version", "1.2.0");
     }
 
     /**
