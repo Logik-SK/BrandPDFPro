@@ -69,6 +69,7 @@ public class BrandPDFProApp extends Application {
     // Radio Buttons (Mutually Exclusive)
     private RadioButton scaleContentRadio;
     private RadioButton compressContentRadio;
+    private RadioButton increasePageSizeRadio;
 
     // Status Indicator
     private Label statusLabel;
@@ -177,13 +178,16 @@ public class BrandPDFProApp extends Application {
         // Overlap Management Options
         scaleContentRadio = new RadioButton("Scale Content");
         compressContentRadio = new RadioButton("Compress Content");
+        increasePageSizeRadio = new RadioButton("Increase Page Size");
 
         ToggleGroup overlapModeGroup = new ToggleGroup();
         scaleContentRadio.setToggleGroup(overlapModeGroup);
         compressContentRadio.setToggleGroup(overlapModeGroup);
+        increasePageSizeRadio.setToggleGroup(overlapModeGroup);
         compressContentRadio.setSelected(true);
         scaleContentRadio.setDisable(true);
         compressContentRadio.setDisable(true);
+        increasePageSizeRadio.setDisable(true);
 
         batchProcessingCheckBox = new CheckBox("Batch Processing");
         batchProcessingCheckBox.setSelected(false);
@@ -254,9 +258,9 @@ public class BrandPDFProApp extends Application {
 
         // Option Bundles Laying
         HBox optionsBox = new HBox(15);
-        VBox overlapOptionsBox = new VBox(3, scaleContentRadio, compressContentRadio);
+        VBox overlapOptionsBox = new VBox(3, scaleContentRadio, compressContentRadio, increasePageSizeRadio);
         overlapOptionsBox.setPadding(new Insets(0, 0, 0, 25));
-        optionsBox.getChildren().addAll(pageNumberCheckBox, documentTagCheckBox, documentTagComboBox,preventOverlapCheckBox, overlapOptionsBox);
+        optionsBox.getChildren().addAll(pageNumberCheckBox, documentTagCheckBox, documentTagComboBox, preventOverlapCheckBox, overlapOptionsBox);
 
         form.add(optionsBox, 1, row);
         row++;
@@ -440,10 +444,12 @@ public class BrandPDFProApp extends Application {
 
             boolean scaleTheContent = false;
             boolean compressTheContent = false;
+            boolean increasePageSize = false;
 
             if (preventOverlap) {
                 scaleTheContent = scaleContentRadio.isSelected();
                 compressTheContent = compressContentRadio.isSelected();
+                increasePageSize = increasePageSizeRadio.isSelected();
             }
 
             System.out.println("=================================");
@@ -453,13 +459,15 @@ public class BrandPDFProApp extends Application {
             System.out.println("Scale Content   : " + scaleTheContent);
             System.out.println("Compress Content: " + compressTheContent);
             System.out.println("=================================");
+            System.out.println("Increase Page Size: " + increasePageSize);
+            System.out.println("=================================");
 
             if (batchMode) {
                 File inputFolder = new File(inputFolderField.getText());
-                int processedCount = batchProcessorService.processFolder(headerFile, footerFile, inputFolder, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, compressTheContent, compressTheContent);
+                int processedCount = batchProcessorService.processFolder(headerFile, footerFile, inputFolder, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, compressTheContent, compressTheContent, increasePageSize);
                 statusLabel.setText("🟢 " + processedCount + " PDF(s) Processed");
             } else {
-                pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, compressTheContent);
+                pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, compressTheContent, increasePageSize);
                 statusLabel.setText("🟢 PDF Generated Successfully");
             }
         } catch (Exception ex) {
@@ -538,14 +546,17 @@ public class BrandPDFProApp extends Application {
         boolean enabled = preventOverlapCheckBox.isSelected();
         scaleContentRadio.setDisable(!enabled);
         compressContentRadio.setDisable(!enabled);
+        increasePageSizeRadio.setDisable(!enabled);
         if (!enabled) {
-            scaleContentRadio.setSelected(true);
+            compressContentRadio.setSelected(true);
         }
 
         System.out.println("=================================");
         System.out.println("Prevent Overlap = " + enabled);
         System.out.println("Scale Content   = " + scaleContentRadio.isSelected());
         System.out.println("Compress Content= " + compressContentRadio.isSelected());
+        System.out.println("=================================");
+        System.out.println("Increase Page Size= " + increasePageSizeRadio.isSelected());
         System.out.println("=================================");
     }
 

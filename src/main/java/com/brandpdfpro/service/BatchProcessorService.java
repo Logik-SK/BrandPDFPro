@@ -31,7 +31,7 @@ public class BatchProcessorService {
      * @throws Exception                 if an unhandled structural file error occurs during writing
      */
     public int processFolder(File headerFile, File footerFile, File inputFolder, File outputFolder, boolean addPageNumbers,
-                             boolean addDocumentTag, String documentTag, boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent) throws Exception {
+                             boolean addDocumentTag, String documentTag, boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent,boolean increasePageSize) throws Exception {
 
         File[] pdfFiles = inputFolder.listFiles(file -> file.isFile() && file.getName().toLowerCase().endsWith(".pdf"));
 
@@ -43,7 +43,7 @@ public class BatchProcessorService {
             System.out.println("Processing : " + pdfFile.getName());
 
             // Note: Original code logic maps 'scaleTheContent' to both of the trailing boolean parameters.
-            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, scaleTheContent);
+            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, scaleTheContent,increasePageSize);
         }
 
         return pdfFiles.length;
