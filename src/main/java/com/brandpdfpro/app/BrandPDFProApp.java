@@ -255,7 +255,7 @@ public class BrandPDFProApp extends Application {
         HBox optionsBox = new HBox(15);
         VBox overlapOptionsBox = new VBox(3, scaleContentRadio, compressContentRadio);
         overlapOptionsBox.setPadding(new Insets(0, 0, 0, 25));
-        optionsBox.getChildren().addAll(pageNumberCheckBox, documentTagCheckBox, preventOverlapCheckBox, overlapOptionsBox);
+        optionsBox.getChildren().addAll(pageNumberCheckBox, documentTagCheckBox, documentTagComboBox,preventOverlapCheckBox, overlapOptionsBox);
 
         form.add(optionsBox, 1, row);
         row++;

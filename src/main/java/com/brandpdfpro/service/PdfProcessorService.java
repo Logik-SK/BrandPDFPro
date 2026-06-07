@@ -29,6 +29,8 @@ public class PdfProcessorService {
     // Programmatic Static Spacing Layout Rules
     private static final float PAGE_NUMBER_FONT_SIZE = 8f;
     private static final float PAGE_NUMBER_Y_POSITION = 20f;
+    private static final float TAG_PADDING_X = 6f;
+    private static final float TAG_PADDING_Y = 3f;
     private static final float DOCUMENT_TAG_X_POSITION = 10f;
     private static final float DOCUMENT_TAG_Y_POSITION = 50f;
     private static final float DOCUMENT_TAG_FONT_SIZE = 8f;
@@ -273,16 +275,50 @@ public class PdfProcessorService {
     }
 
     /**
-     * Applies security tags into fixed lower boundary alignment zones using proper sentence casing.
+     * Injects a stylized classification metadata tag wrapped inside a custom
+     * stroked bounding box into the lower margin coordinates of the target page.
+     * <p>
+     * Computes textual widths dynamically using font metrics, adds defensive horizontal
+     * and vertical padding constraints, strokes an outline rect framework, and renders
+     * the upper-cased classification text cleanly centered over the target coordinates.
+     * </p>
+     *
+     * @param document    the active PDDocument source container
+     * @param page        the page canvas layer where metadata branding is written
+     * @param documentTag the raw descriptive tag text sequence to apply
+     * @throws IOException if a failure occurs while appending bytes into the page stream
      */
     private void addDocumentTag(PDDocument document, PDPage page, String documentTag) throws IOException {
-        PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
 
-        try (PDPageContentStream contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
-            String displayTag = documentTag.substring(0, 1) + documentTag.substring(1).toLowerCase();
+        PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+        String displayTag = documentTag.toUpperCase();
+        float fontSize = 8f;
+
+        // Calculate visual bounding boundaries based on text string dimensions
+        float textWidth = font.getStringWidth(displayTag) / 1000 * fontSize;
+        float boxWidth = textWidth + (TAG_PADDING_X * 2);
+        float boxHeight = fontSize + (TAG_PADDING_Y * 2);
+
+        // Fixed positional coordinates on lower page canvas boundary margins
+        float x = 10f;
+        float y = 45f;
+
+        try (PDPageContentStream contentStream = new PDPageContentStream(
+                document,
+                page,
+                PDPageContentStream.AppendMode.APPEND,
+                true,
+                true
+        )) {
+
+            // Render Border Rectangle Outline Layer
+            contentStream.addRect(x, y, boxWidth, boxHeight);
+            contentStream.stroke();
+
+            // Render Text Payload Layer Centered over Content Block
             contentStream.beginText();
-            contentStream.setFont(font, DOCUMENT_TAG_FONT_SIZE);
-            contentStream.newLineAtOffset(DOCUMENT_TAG_X_POSITION, DOCUMENT_TAG_Y_POSITION);
+            contentStream.setFont(font, fontSize);
+            contentStream.newLineAtOffset(x + TAG_PADDING_X, y + TAG_PADDING_Y + 1);
             contentStream.showText(displayTag);
             contentStream.endText();
         }
