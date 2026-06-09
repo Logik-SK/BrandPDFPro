@@ -1,7 +1,9 @@
 package com.brandpdfpro.app;
 
+import com.brandpdfpro.model.ProcessingProfile;
 import com.brandpdfpro.service.*;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -14,11 +16,14 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.concurrent.Task;
 
 import javax.swing.text.html.parser.DTDConstants;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Optional;
+
 
 /**
  * Main application class for BrandPDF Pro.
@@ -35,6 +40,7 @@ public class BrandPDFProApp extends Application {
     private final SettingsService settingsService = new SettingsService();
     private final BatchProcessorService batchProcessorService = new BatchProcessorService();
     private final AppConfigService appConfigService = new AppConfigService();
+    private final ProfileService profileService = new ProfileService();
 
     // Image Preview Components
     private ImageView headerPreview;
@@ -58,6 +64,9 @@ public class BrandPDFProApp extends Application {
     private Button processBtn;
     private Button saveSettingsBtn;
     private Button inputFolderBtn;
+    private Button saveProfileBtn;
+    private Button loadProfileBtn;
+    private Button deleteProfileBtn;
 
     // Checkboxes and ComboBoxes
     private CheckBox pageNumberCheckBox;
@@ -65,6 +74,7 @@ public class BrandPDFProApp extends Application {
     private CheckBox batchProcessingCheckBox;
     private CheckBox documentTagCheckBox;
     private ComboBox<String> documentTagComboBox;
+    private ComboBox<String> profileComboBox;
 
     // Radio Buttons (Mutually Exclusive)
     private RadioButton scaleContentRadio;
@@ -73,6 +83,10 @@ public class BrandPDFProApp extends Application {
 
     // Status Indicator
     private Label statusLabel;
+
+    //Progress Bar
+    private ProgressBar progressBar;
+    private Label progressLabel;
 
     /**
      * The main entry point for the application.
@@ -214,6 +228,22 @@ public class BrandPDFProApp extends Application {
         footerPreview.setFitHeight(appConfigService.getPreviewHeight());
         footerPreview.setPreserveRatio(false);
 
+        //Progress Bar
+        progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(350);
+
+        progressLabel = new Label("Ready");
+
+        progressBar.setVisible(false);
+        progressLabel.setVisible(false);
+
+        profileComboBox = new ComboBox<>();
+        refreshProfiles();
+
+        saveProfileBtn = new Button("💾 Save Profile");
+        loadProfileBtn = new Button("📂 Load Profile");
+        deleteProfileBtn = new Button("🗑 Delete");
+
         // Build grid dynamically row-by-row
         int row = 0;
 
@@ -286,7 +316,21 @@ public class BrandPDFProApp extends Application {
         form.add(saveSettingsBtn, 1, row);
         row++;
 
+        //Profile Box
+        form.add(new Label("👤 Profile"), 0, row);
+        HBox profileBox = new HBox(10, profileComboBox, loadProfileBtn, saveProfileBtn, deleteProfileBtn);
+        form.add(profileBox,1,row);
+        row++;
+
         form.add(processBtn, 1, row);
+        row++;
+
+
+
+        //Progress bar
+        VBox processingBox = new VBox(10, processBtn, progressLabel, progressBar);
+        form.add(processingBox, 1, row);
+
         updateProcessingMode();
 
         return form;
@@ -319,6 +363,9 @@ public class BrandPDFProApp extends Application {
         batchProcessingCheckBox.setOnAction(e -> updateProcessingMode());
         documentTagCheckBox.setOnAction(e -> updateDocumentTagControls());
         preventOverlapCheckBox.setOnAction(e -> updateOverlapControls());
+        saveProfileBtn.setOnAction(e -> saveProfile());
+        loadProfileBtn.setOnAction(e -> loadProfile());
+        deleteProfileBtn.setOnAction(e -> deleteProfile());
     }
 
     /**
@@ -427,51 +474,117 @@ public class BrandPDFProApp extends Application {
     }
 
     /**
-     * Extracts state values from form controllers to pass asset directives
-     * onwards into PDF construction core rendering services.
+     * Orchestrates the primary PDF modification workflow on a background daemon thread.
+     * <p>
+     * Compiles UI settings (such as text values, checkbox inputs, and structural overlap variables),
+     * abstracts execution inside a JavaFX {@link javafx.concurrent.Task}, and handles concurrent state switching.
+     * It uses structural callbacks wrapped in {@code Platform.runLater()} to safely update thread-restricted
+     * UI components like progress bars, status fields, and buttons throughout its batch or single execution lifecycles.
+     * </p>
      */
     private void processPdf() {
         try {
-            File headerFile = templateService.getHeaderTemplate();
-            File footerFile = templateService.getFooterTemplate();
-            File pdfFile = new File(pdfField.getText());
-            File outputFolder = new File(outputField.getText());
-            boolean addPageNumbers = pageNumberCheckBox.isSelected();
-            boolean batchMode = batchProcessingCheckBox.isSelected();
-            boolean addDocumentTag = documentTagCheckBox.isSelected();
-            String documentTag = documentTagComboBox.getValue();
-            boolean preventOverlap = preventOverlapCheckBox.isSelected();
+            Task<Void> task = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    // Extract template image assets from the disk template service
+                    File headerFile = templateService.getHeaderTemplate();
+                    File footerFile = templateService.getFooterTemplate();
+                    File pdfFile = new File(pdfField.getText());
+                    File outputFolder = new File(outputField.getText());
 
-            boolean scaleTheContent = false;
-            boolean compressTheContent = false;
-            boolean increasePageSize = false;
+                    // Read explicit control selections from GUI components
+                    boolean addPageNumbers = pageNumberCheckBox.isSelected();
+                    boolean batchMode = batchProcessingCheckBox.isSelected();
+                    boolean addDocumentTag = documentTagCheckBox.isSelected();
+                    String documentTag = documentTagComboBox.getValue();
+                    boolean preventOverlap = preventOverlapCheckBox.isSelected();
 
-            if (preventOverlap) {
-                scaleTheContent = scaleContentRadio.isSelected();
-                compressTheContent = compressContentRadio.isSelected();
-                increasePageSize = increasePageSizeRadio.isSelected();
-            }
+                    boolean scaleTheContent = false;
+                    boolean compressTheContent = false;
+                    boolean increasePageSize = false;
 
-            System.out.println("=================================");
-            System.out.println("PROCESS OPTIONS");
-            System.out.println("=================================");
-            System.out.println("Prevent Overlap : " + preventOverlap);
-            System.out.println("Scale Content   : " + scaleTheContent);
-            System.out.println("Compress Content: " + compressTheContent);
-            System.out.println("=================================");
-            System.out.println("Increase Page Size: " + increasePageSize);
-            System.out.println("=================================");
+                    if (preventOverlap) {
+                        scaleTheContent = scaleContentRadio.isSelected();
+                        compressTheContent = compressContentRadio.isSelected();
+                        increasePageSize = increasePageSizeRadio.isSelected();
+                    }
 
-            if (batchMode) {
-                File inputFolder = new File(inputFolderField.getText());
-                int processedCount = batchProcessorService.processFolder(headerFile, footerFile, inputFolder, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, compressTheContent, compressTheContent, increasePageSize);
-                statusLabel.setText("🟢 " + processedCount + " PDF(s) Processed");
-            } else {
-                pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, compressTheContent, increasePageSize);
-                statusLabel.setText("🟢 PDF Generated Successfully");
-            }
+                    System.out.println("=================================");
+                    System.out.println("PROCESS OPTIONS");
+                    System.out.println("=================================");
+                    System.out.println("Prevent Overlap : " + preventOverlap);
+                    System.out.println("Scale Content   : " + scaleTheContent);
+                    System.out.println("Compress Content: " + compressTheContent);
+                    System.out.println("Increase Page Size: " + increasePageSize);
+                    System.out.println("=================================");
+
+                    if (batchMode) {
+                        // Instantiate thread-safe updater listener callback for UI rendering
+                        ProgressCallback callback = (current, total, message) -> Platform.runLater(() -> {
+                            progressBar.setProgress((double) current / total);
+                            progressLabel.setText(current + " / " + total + " - " + message);
+                        });
+
+                        File inputFolder = new File(inputFolderField.getText());
+                        int processedCount = batchProcessorService.processFolder(
+                                headerFile, footerFile, inputFolder, outputFolder,
+                                addPageNumbers, addDocumentTag, documentTag, preventOverlap,
+                                scaleTheContent, compressTheContent, increasePageSize, callback
+                        );
+
+                        Platform.runLater(() ->
+                                statusLabel.setText("🟢 " + processedCount + " PDF(s) Processed Successfully")
+                        );
+                    } else {
+                        pdfProcessorService.processPdf(
+                                headerFile, footerFile, pdfFile, outputFolder,
+                                addPageNumbers, addDocumentTag, documentTag, preventOverlap,
+                                scaleTheContent, compressTheContent, increasePageSize
+                        );
+
+                        Platform.runLater(() ->
+                                statusLabel.setText("🟢 PDF Generated Successfully")
+                        );
+                    }
+
+                    return null;
+                }
+            };
+
+            // Hook task lifecycle behavior states to UI tracking metrics
+            task.setOnRunning(event -> {
+                processBtn.setDisable(true);
+                showProgress();
+                progressBar.setProgress(0);
+                progressLabel.setText("Processing...");
+                statusLabel.setText("⏳ Processing...");
+            });
+
+            task.setOnSucceeded(event -> {
+                progressBar.setProgress(1.0);
+                progressLabel.setText("Completed");
+                statusLabel.setText("🟢 Processing Completed Successfully");
+                processBtn.setDisable(false);
+            });
+
+            task.setOnFailed(event -> {
+                processBtn.setDisable(false);
+                Throwable ex = task.getException();
+                statusLabel.setText("❌ Processing Failed");
+                if (ex != null) {
+                    progressLabel.setText(ex.getMessage());
+                    ex.printStackTrace();
+                }
+            });
+
+            // Fire off execution in a standard standalone background Daemon context
+            Thread thread = new Thread(task);
+            thread.setDaemon(true);
+            thread.start();
+
         } catch (Exception ex) {
-            statusLabel.setText("🔴 " + ex.getMessage());
+            statusLabel.setText("❌ " + ex.getMessage());
             ex.printStackTrace();
         }
     }
@@ -602,5 +715,207 @@ public class BrandPDFProApp extends Application {
             event.setDropCompleted(success);
             event.consume();
         });
+    }
+
+    /**
+     * Activates progress tracking nodes in the user interface.
+     * Unhides the progress bar and layout status labels, resets the progress indices
+     * back to zero, and primes the tracking string text to notify the user of execution initiation.
+     */
+    private void showProgress() {
+        progressBar.setVisible(true);
+        progressLabel.setVisible(true);
+        progressBar.setProgress(0);
+        progressLabel.setText("Starting...");
+    }
+
+    /**
+     * Deactivates and hides progress tracking nodes from the user interface viewport.
+     * Call this cleanup wrapper when active processing loops exit or terminate.
+     */
+    private void hideProgress() {
+        progressBar.setVisible(false);
+        progressLabel.setVisible(false);
+    }
+
+    private void refreshProfiles() {
+
+        profileComboBox.getItems().clear();
+        profileComboBox.getItems().addAll(profileService.getAllProfiles());
+        if (!profileComboBox.getItems().isEmpty()) {
+            profileComboBox.setValue(profileComboBox.getItems().get(0));
+        }
+    }
+    /**
+     * Spawns a modal input prompt allowing the user to commit current UI configuration states
+     * into a persistent named {@link ProcessingProfile}.
+     * <p>
+     * Displays a JavaFX {@link javafx.scene.control.TextInputDialog} to capture a profile name.
+     * Upon validation, it maps all layout variables, selected paths, and formatting checkboxes
+     * directly into a fresh model instance, delegates persistence tasks to the underlying
+     * profile service, triggers a cache refresh, and updates the view combobox state.
+     * </p>
+     */
+    private void saveProfile() {
+        try {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Save Profile");
+            dialog.setHeaderText(null);
+            dialog.setContentText("Enter Profile Name:");
+
+            Optional<String> result = dialog.showAndWait();
+            if (result.isEmpty()) {
+                return;
+            }
+
+            String profileName = result.get().trim();
+            if (profileName.isEmpty()) {
+                statusLabel.setText("❌ Profile name cannot be empty.");
+                return;
+            }
+
+            // Map current GUI element states into a new persistent profile model
+            ProcessingProfile profile = new ProcessingProfile();
+            profile.setProfileName(profileName);
+
+            profile.setHeaderTemplatePath(
+                    templateService.getHeaderTemplate() != null
+                            ? templateService.getHeaderTemplate().getAbsolutePath()
+                            : ""
+            );
+
+            profile.setFooterTemplatePath(
+                    templateService.getFooterTemplate() != null
+                            ? templateService.getFooterTemplate().getAbsolutePath()
+                            : ""
+            );
+
+            profile.setAddPageNumbers(pageNumberCheckBox.isSelected());
+            profile.setAddDocumentTag(documentTagCheckBox.isSelected());
+            profile.setDocumentTag(documentTagComboBox.getValue());
+            profile.setPreventOverlap(preventOverlapCheckBox.isSelected());
+            profile.setScaleContent(scaleContentRadio.isSelected());
+            profile.setCompressContent(compressContentRadio.isSelected());
+            profile.setIncreasePageSize(increasePageSizeRadio.isSelected());
+
+            // Delegate persistence and synchronize view controls
+            profileService.saveProfile(profile);
+            refreshProfiles();
+            profileComboBox.setValue(profileName);
+
+            statusLabel.setText("🟢 Profile Saved Successfully");
+
+        } catch (Exception ex) {
+            statusLabel.setText("❌ " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Extracts a chosen profile selection out of the UI ComboBox control and maps its preserved
+     * configurations directly back onto the active user interface elements.
+     * <p>
+     * Performs target presence checks on selection indices, pulls the complete data configuration
+     * model via the profile service layer, updates template workspace file blocks for headers
+     * and footers, maps checkbox states, and synchronizes contextual toggle controls via
+     * {@link #updatePreventOverlapControls()}.
+     * </p>
+     */
+    private void loadProfile() {
+        try {
+            String profileName = profileComboBox.getValue();
+
+            if (profileName == null || profileName.trim().isEmpty()) {
+                statusLabel.setText("❌ Please select a profile.");
+                return;
+            }
+
+            ProcessingProfile profile = profileService.loadProfile(profileName);
+
+            // Handle Header Template Synchronization
+            if (profile.getHeaderTemplatePath() != null && !profile.getHeaderTemplatePath().isEmpty()) {
+                File headerFile = new File(profile.getHeaderTemplatePath());
+                templateService.saveHeaderTemplate(headerFile);
+                headerField.setText(headerFile.getName());
+            }
+
+            // Handle Footer Template Synchronization
+            if (profile.getFooterTemplatePath() != null && !profile.getFooterTemplatePath().isEmpty()) {
+                File footerFile = new File(profile.getFooterTemplatePath());
+                templateService.saveFooterTemplate(footerFile);
+                footerField.setText(footerFile.getName());
+            }
+
+            // Bind persistent model attributes back down onto specific JavaFX component selectors
+            pageNumberCheckBox.setSelected(profile.isAddPageNumbers());
+            documentTagCheckBox.setSelected(profile.isAddDocumentTag());
+            documentTagComboBox.setValue(profile.getDocumentTag());
+            preventOverlapCheckBox.setSelected(profile.isPreventOverlap());
+            scaleContentRadio.setSelected(profile.isScaleContent());
+            compressContentRadio.setSelected(profile.isCompressContent());
+            increasePageSizeRadio.setSelected(profile.isIncreasePageSize());
+
+            // Force visual dependent layout buttons to repaint matching active states
+            updatePreventOverlapControls();
+
+            statusLabel.setText("🟢 Profile Loaded Successfully");
+
+        } catch (Exception ex) {
+            statusLabel.setText("❌ " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Deletes a targeted processing configuration profile from persistence storage.
+     * <p>
+     * Extracts the active selection from the profile ComboBox control, validates its
+     * presence, and prompts the user with a modal JavaFX confirmation {@link javafx.scene.control.Alert}.
+     * If the user affirms the warning dialog, it invokes the profile service layer to purge the data records,
+     * refreshes the available profiles index, and flushes dependent view states.
+     * </p>
+     */
+    private void deleteProfile() {
+        try {
+            String profileName = profileComboBox.getValue();
+
+            if (profileName == null || profileName.trim().isEmpty()) {
+                statusLabel.setText("❌ Please select a profile.");
+                return;
+            }
+
+            // Configure and display confirmation dialog framework
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Delete Profile");
+            alert.setHeaderText(null);
+            alert.setContentText("Are you sure you want to delete profile '" + profileName + "'?");
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isEmpty() || result.get() != ButtonType.OK) {
+                return;
+            }
+
+            // Execute removal through the service layer and update components
+            boolean deleted = profileService.deleteProfile(profileName);
+
+            if (deleted) {
+                refreshProfiles();
+                profileComboBox.setValue(null);
+                statusLabel.setText("🟢 Profile Deleted Successfully");
+            } else {
+                statusLabel.setText("❌ Profile not found.");
+            }
+
+        } catch (Exception ex) {
+            statusLabel.setText("❌ " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    private void updatePreventOverlapControls() {
+        boolean enabled = preventOverlapCheckBox.isSelected();
+        scaleContentRadio.setDisable(!enabled);
+        compressContentRadio.setDisable(!enabled);
+        increasePageSizeRadio.setDisable(!enabled);
     }
 }
