@@ -2,6 +2,7 @@ package com.brandpdfpro.app;
 
 import com.brandpdfpro.service.*;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -14,11 +15,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.concurrent.Task;
 
 import javax.swing.text.html.parser.DTDConstants;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
+
 
 /**
  * Main application class for BrandPDF Pro.
@@ -73,6 +76,10 @@ public class BrandPDFProApp extends Application {
 
     // Status Indicator
     private Label statusLabel;
+
+    //Progress Bar
+    private ProgressBar progressBar;
+    private Label progressLabel;
 
     /**
      * The main entry point for the application.
@@ -214,6 +221,15 @@ public class BrandPDFProApp extends Application {
         footerPreview.setFitHeight(appConfigService.getPreviewHeight());
         footerPreview.setPreserveRatio(false);
 
+        //Progress Bar
+        progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(350);
+
+        progressLabel = new Label("Ready");
+
+        progressBar.setVisible(false);
+        progressLabel.setVisible(false);
+
         // Build grid dynamically row-by-row
         int row = 0;
 
@@ -287,6 +303,12 @@ public class BrandPDFProApp extends Application {
         row++;
 
         form.add(processBtn, 1, row);
+        row++;
+
+        //Progress bar
+        VBox processingBox = new VBox(10, processBtn, progressLabel, progressBar);
+        form.add(processingBox, 1, row);
+
         updateProcessingMode();
 
         return form;
@@ -427,51 +449,117 @@ public class BrandPDFProApp extends Application {
     }
 
     /**
-     * Extracts state values from form controllers to pass asset directives
-     * onwards into PDF construction core rendering services.
+     * Orchestrates the primary PDF modification workflow on a background daemon thread.
+     * <p>
+     * Compiles UI settings (such as text values, checkbox inputs, and structural overlap variables),
+     * abstracts execution inside a JavaFX {@link javafx.concurrent.Task}, and handles concurrent state switching.
+     * It uses structural callbacks wrapped in {@code Platform.runLater()} to safely update thread-restricted
+     * UI components like progress bars, status fields, and buttons throughout its batch or single execution lifecycles.
+     * </p>
      */
     private void processPdf() {
         try {
-            File headerFile = templateService.getHeaderTemplate();
-            File footerFile = templateService.getFooterTemplate();
-            File pdfFile = new File(pdfField.getText());
-            File outputFolder = new File(outputField.getText());
-            boolean addPageNumbers = pageNumberCheckBox.isSelected();
-            boolean batchMode = batchProcessingCheckBox.isSelected();
-            boolean addDocumentTag = documentTagCheckBox.isSelected();
-            String documentTag = documentTagComboBox.getValue();
-            boolean preventOverlap = preventOverlapCheckBox.isSelected();
+            Task<Void> task = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    // Extract template image assets from the disk template service
+                    File headerFile = templateService.getHeaderTemplate();
+                    File footerFile = templateService.getFooterTemplate();
+                    File pdfFile = new File(pdfField.getText());
+                    File outputFolder = new File(outputField.getText());
 
-            boolean scaleTheContent = false;
-            boolean compressTheContent = false;
-            boolean increasePageSize = false;
+                    // Read explicit control selections from GUI components
+                    boolean addPageNumbers = pageNumberCheckBox.isSelected();
+                    boolean batchMode = batchProcessingCheckBox.isSelected();
+                    boolean addDocumentTag = documentTagCheckBox.isSelected();
+                    String documentTag = documentTagComboBox.getValue();
+                    boolean preventOverlap = preventOverlapCheckBox.isSelected();
 
-            if (preventOverlap) {
-                scaleTheContent = scaleContentRadio.isSelected();
-                compressTheContent = compressContentRadio.isSelected();
-                increasePageSize = increasePageSizeRadio.isSelected();
-            }
+                    boolean scaleTheContent = false;
+                    boolean compressTheContent = false;
+                    boolean increasePageSize = false;
 
-            System.out.println("=================================");
-            System.out.println("PROCESS OPTIONS");
-            System.out.println("=================================");
-            System.out.println("Prevent Overlap : " + preventOverlap);
-            System.out.println("Scale Content   : " + scaleTheContent);
-            System.out.println("Compress Content: " + compressTheContent);
-            System.out.println("=================================");
-            System.out.println("Increase Page Size: " + increasePageSize);
-            System.out.println("=================================");
+                    if (preventOverlap) {
+                        scaleTheContent = scaleContentRadio.isSelected();
+                        compressTheContent = compressContentRadio.isSelected();
+                        increasePageSize = increasePageSizeRadio.isSelected();
+                    }
 
-            if (batchMode) {
-                File inputFolder = new File(inputFolderField.getText());
-                int processedCount = batchProcessorService.processFolder(headerFile, footerFile, inputFolder, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, compressTheContent, compressTheContent, increasePageSize);
-                statusLabel.setText("🟢 " + processedCount + " PDF(s) Processed");
-            } else {
-                pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, compressTheContent, increasePageSize);
-                statusLabel.setText("🟢 PDF Generated Successfully");
-            }
+                    System.out.println("=================================");
+                    System.out.println("PROCESS OPTIONS");
+                    System.out.println("=================================");
+                    System.out.println("Prevent Overlap : " + preventOverlap);
+                    System.out.println("Scale Content   : " + scaleTheContent);
+                    System.out.println("Compress Content: " + compressTheContent);
+                    System.out.println("Increase Page Size: " + increasePageSize);
+                    System.out.println("=================================");
+
+                    if (batchMode) {
+                        // Instantiate thread-safe updater listener callback for UI rendering
+                        ProgressCallback callback = (current, total, message) -> Platform.runLater(() -> {
+                            progressBar.setProgress((double) current / total);
+                            progressLabel.setText(current + " / " + total + " - " + message);
+                        });
+
+                        File inputFolder = new File(inputFolderField.getText());
+                        int processedCount = batchProcessorService.processFolder(
+                                headerFile, footerFile, inputFolder, outputFolder,
+                                addPageNumbers, addDocumentTag, documentTag, preventOverlap,
+                                scaleTheContent, compressTheContent, increasePageSize, callback
+                        );
+
+                        Platform.runLater(() ->
+                                statusLabel.setText("🟢 " + processedCount + " PDF(s) Processed Successfully")
+                        );
+                    } else {
+                        pdfProcessorService.processPdf(
+                                headerFile, footerFile, pdfFile, outputFolder,
+                                addPageNumbers, addDocumentTag, documentTag, preventOverlap,
+                                scaleTheContent, compressTheContent, increasePageSize
+                        );
+
+                        Platform.runLater(() ->
+                                statusLabel.setText("🟢 PDF Generated Successfully")
+                        );
+                    }
+
+                    return null;
+                }
+            };
+
+            // Hook task lifecycle behavior states to UI tracking metrics
+            task.setOnRunning(event -> {
+                processBtn.setDisable(true);
+                showProgress();
+                progressBar.setProgress(0);
+                progressLabel.setText("Processing...");
+                statusLabel.setText("⏳ Processing...");
+            });
+
+            task.setOnSucceeded(event -> {
+                progressBar.setProgress(1.0);
+                progressLabel.setText("Completed");
+                statusLabel.setText("🟢 Processing Completed Successfully");
+                processBtn.setDisable(false);
+            });
+
+            task.setOnFailed(event -> {
+                processBtn.setDisable(false);
+                Throwable ex = task.getException();
+                statusLabel.setText("❌ Processing Failed");
+                if (ex != null) {
+                    progressLabel.setText(ex.getMessage());
+                    ex.printStackTrace();
+                }
+            });
+
+            // Fire off execution in a standard standalone background Daemon context
+            Thread thread = new Thread(task);
+            thread.setDaemon(true);
+            thread.start();
+
         } catch (Exception ex) {
-            statusLabel.setText("🔴 " + ex.getMessage());
+            statusLabel.setText("❌ " + ex.getMessage());
             ex.printStackTrace();
         }
     }
@@ -602,5 +690,26 @@ public class BrandPDFProApp extends Application {
             event.setDropCompleted(success);
             event.consume();
         });
+    }
+
+    /**
+     * Activates progress tracking nodes in the user interface.
+     * Unhides the progress bar and layout status labels, resets the progress indices
+     * back to zero, and primes the tracking string text to notify the user of execution initiation.
+     */
+    private void showProgress() {
+        progressBar.setVisible(true);
+        progressLabel.setVisible(true);
+        progressBar.setProgress(0);
+        progressLabel.setText("Starting...");
+    }
+
+    /**
+     * Deactivates and hides progress tracking nodes from the user interface viewport.
+     * Call this cleanup wrapper when active processing loops exit or terminate.
+     */
+    private void hideProgress() {
+        progressBar.setVisible(false);
+        progressLabel.setVisible(false);
     }
 }
