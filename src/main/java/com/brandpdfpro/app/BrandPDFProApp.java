@@ -4,36 +4,34 @@ import com.brandpdfpro.model.ProcessingProfile;
 import com.brandpdfpro.service.*;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.TransferMode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import javafx.concurrent.Task;
 
-import javax.swing.text.html.parser.DTDConstants;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 
-
 /**
- * Main application class for BrandPDF Pro.
- * Provides a JavaFX graphical user interface for applying consistent company
- * branding (headers, footers, page numbers, and custom document tags) to
- * single PDF files or processing them in batches.
+ * Main application layout entry point for BrandPDF Pro.
+ * Provides a responsive desktop environment for applying corporate templates
+ * and processing batches with an adaptive dark/light design system.
  */
 public class BrandPDFProApp extends Application {
 
-    // Services
+    // =========================================================================
+    // Core Business Logic Services
+    // =========================================================================
     private final FileService fileService = new FileService();
     private final TemplateService templateService = new TemplateService();
     private final PdfProcessorService pdfProcessorService = new PdfProcessorService();
@@ -42,15 +40,30 @@ public class BrandPDFProApp extends Application {
     private final AppConfigService appConfigService = new AppConfigService();
     private final ProfileService profileService = new ProfileService();
 
-    // Image Preview Components
+    // =========================================================================
+    // View Containers & UI Components
+    // =========================================================================
     private ImageView headerPreview;
     private ImageView footerPreview;
 
-    // Text Input Fields
+    private StackPane contentArea;
+    private Button processPageBtn;
+    private Button profilesPageBtn;
+    private Button settingsPageBtn;
+    private Button licensePageBtn;
+    private Button aboutPageBtn;
+    private ToggleButton themeToggleBtn;
+
+    private Node processPage;
+    private Node profilesPage;
+    private Node settingsPage;
+    private Node licensePage;
+    private Node aboutPage;
+
     private TextField headerField;
     private TextField footerField;
     private TextField pdfField;
-    private TextField outputField;
+    private TextField outputFolderField;
     private TextField headerHeightField;
     private TextField companyNameField;
     private TextField footerHeightField;
@@ -60,7 +73,7 @@ public class BrandPDFProApp extends Application {
     private Button headerBtn;
     private Button footerBtn;
     private Button pdfBtn;
-    private Button outputBtn;
+    private Button outputFolderBtn;
     private Button processBtn;
     private Button saveSettingsBtn;
     private Button inputFolderBtn;
@@ -87,276 +100,108 @@ public class BrandPDFProApp extends Application {
     //Progress Bar
     private ProgressBar progressBar;
     private Label progressLabel;
+    private HBox bottomSection;
+    private Scene mainScene;
 
     /**
      * The main entry point for the application.
      *
-     * @param args command-line arguments passed to the application
+     * @param args Command-line arguments.
      */
     public static void main(String[] args) {
         launch(args);
     }
 
     /**
-     * Initializes and starts the primary stage of the JavaFX application.
-     * Sets up the core layout layout panes, loads user configurations,
-     * registers event handlers, and displays the UI window.
+     * Entry hook initializing the layout view pipeline, resolving NullPointer risks
+     * by building pages prior to assigning core interactive event handlers.
      *
-     * @param stage the primary stage for this application
+     * @param stage The primary stage for this application.
      */
     @Override
     public void start(Stage stage) {
         BorderPane root = new BorderPane();
-        root.setTop(createTopSection());
-        root.setCenter(createCenterSection());
-        root.setBottom(createBottomSection());
 
+        // 1. Core Structural Initializations
+        VBox sidebar = createSidebar();
+        sidebar.setMinWidth(240);
+        sidebar.setPrefWidth(240);
+        root.setLeft(sidebar);
+
+        // 2. Build View Pages (Resolves Bug #1 NPE Vulnerabilities during runtime assignment)
+        processPage = createProcessPage();
+        profilesPage = createProfilesPage();
+        settingsPage = createSettingsPage();
+        licensePage = createLicensePage();
+        aboutPage = createAboutPage();
+
+        contentArea = new StackPane();
+        contentArea.getStyleClass().add("content-area");
+
+        // Establish default starting workspace page
+        contentArea.getChildren().add(processPage);
+        root.setCenter(contentArea);
+
+        bottomSection = createBottomSection();
+        root.setBottom(bottomSection);
+
+        // 3. Operational Setup and Workspace Parameter Sync
         registerEvents(stage);
         registerDragAndDrop();
         loadSavedTemplates();
 
+        // Fluid Scroll Pane container keeping dynamic responsiveness regardless of screen dimensions
         ScrollPane scrollPane = new ScrollPane(root);
         scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(false);
+        scrollPane.setFitToHeight(true);
         scrollPane.setPannable(true);
 
-        Scene scene = new Scene(scrollPane, appConfigService.getAppWidth(), appConfigService.getAppHeight());
+        mainScene = new Scene(scrollPane, appConfigService.getAppWidth(), appConfigService.getAppHeight());
 
-        stage.setTitle(appConfigService.getAppTitle() + "- Professional PDF Branding Tool");
-        stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/brandpdfpro.png"))));
-        stage.setScene(scene);
+        applyTheme(false);
+
+        stage.setTitle(appConfigService.getAppTitle() + " - Professional PDF Branding Tool");
+        try {
+            stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/brandpdfpro.png"))));
+        } catch (Exception ignored) {}
+
+        stage.setScene(mainScene);
         stage.show();
     }
 
     /**
-     * Creates and configures the top header section of the application view.
+     * Builds an upgraded dashboard statistics notification floor segment using a
+     * clean layout matrix design.
      *
-     * @return a Label containing the stylized application title
+     * @return An HBox container configured as the application status bar floor.
      */
-    private Label createTopSection() {
-        Label title = new Label("BrandPDF Pro");
-        title.setStyle("-fx-font-size: 28px; -fx-font-weight: bold;");
-        BorderPane.setMargin(title, new Insets(15));
-        return title;
+    private HBox createBottomSection() {
+        HBox container = new HBox(15);
+        container.getStyleClass().add("status-bar-container");
+        container.setPadding(new Insets(12, 24, 12, 24));
+        container.setAlignment(Pos.CENTER_LEFT);
+
+        statusLabel = new Label("🟢 SYSTEM STATE: READY");
+        statusLabel.getStyleClass().add("status-bar-label");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        container.getChildren().addAll(statusLabel, spacer);
+        return container;
     }
 
     /**
-     * Constructs the primary form layout grid containing all configurations, file selectors,
-     * image previews, checkboxes, and processing action controls.
+     * Binds core click functional actions, execution commands, toggles,
+     * and view management listeners to page items.
      *
-     * @return a fully populated and formatted GridPane object representing the center pane
-     */
-    private GridPane createCenterSection() {
-        GridPane form = new GridPane();
-        form.setPadding(new Insets(20));
-        form.setHgap(10);
-        form.setVgap(15);
-
-        // Instantiate Text Fields
-        headerField = new TextField();
-        footerField = new TextField();
-        pdfField = new TextField();
-        pdfField.setPromptText("Drag & Drop PDF Here");
-        inputFolderField = new TextField();
-        inputFolderField.setPromptText("Drag Folder Here");
-        outputField = new TextField();
-
-        File defaultOutputFolder = fileService.getDefaultOutputFolder();
-        outputField.setText(defaultOutputFolder.getAbsolutePath());
-        headerField.setPrefWidth(500);
-
-        // Instantiate Action Buttons
-        headerBtn = new Button("Browse");
-        footerBtn = new Button("Browse");
-        pdfBtn = new Button("Browse");
-        inputFolderBtn = new Button("Browse");
-        outputBtn = new Button("Browse");
-        processBtn = new Button("🚀 Generate Branded PDF");
-
-        // Configuration Checkboxes
-        pageNumberCheckBox = new CheckBox("Add Page Numbers");
-        pageNumberCheckBox.setSelected(true);
-
-        documentTagCheckBox = new CheckBox("Add Document Tag");
-        documentTagCheckBox.setSelected(true);
-
-        // Document Tag ComboBox
-        documentTagComboBox = new ComboBox<>();
-        documentTagComboBox.getItems().addAll("CONFIDENTIAL", "OUTSOURCED", "INTERNAL", "DRAFT", "RESTRICTED");
-        documentTagComboBox.setValue("OUTSOURCED");
-        documentTagComboBox.disableProperty().bind(documentTagCheckBox.selectedProperty().not());
-
-        preventOverlapCheckBox = new CheckBox("Prevent Overlap");
-        preventOverlapCheckBox.setSelected(false);
-
-        // Overlap Management Options
-        scaleContentRadio = new RadioButton("Scale Content");
-        compressContentRadio = new RadioButton("Compress Content");
-        increasePageSizeRadio = new RadioButton("Increase Page Size");
-
-        ToggleGroup overlapModeGroup = new ToggleGroup();
-        scaleContentRadio.setToggleGroup(overlapModeGroup);
-        compressContentRadio.setToggleGroup(overlapModeGroup);
-        increasePageSizeRadio.setToggleGroup(overlapModeGroup);
-        compressContentRadio.setSelected(true);
-        scaleContentRadio.setDisable(true);
-        compressContentRadio.setDisable(true);
-        increasePageSizeRadio.setDisable(true);
-
-        batchProcessingCheckBox = new CheckBox("Batch Processing");
-        batchProcessingCheckBox.setSelected(false);
-
-        // Dimension Settings & Brand Config
-        headerHeightField = new TextField();
-        footerHeightField = new TextField();
-        companyNameField = new TextField(); // company name text box
-        saveSettingsBtn = new Button("💾 Save Settings");
-
-        headerHeightField.setText(String.valueOf(settingsService.getHeaderHeight()));
-        footerHeightField.setText(String.valueOf(settingsService.getFooterHeight()));
-        companyNameField.setText(String.valueOf(settingsService.getCompanyName()));
-
-        // Image Previews Initialization
-        headerPreview = new ImageView();
-        footerPreview = new ImageView();
-
-        headerPreview.setFitWidth(appConfigService.getPreviewWidth());
-        headerPreview.setFitHeight(appConfigService.getPreviewHeight());
-        headerPreview.setPreserveRatio(false);
-
-        footerPreview.setFitWidth(appConfigService.getPreviewWidth());
-        footerPreview.setFitHeight(appConfigService.getPreviewHeight());
-        footerPreview.setPreserveRatio(false);
-
-        //Progress Bar
-        progressBar = new ProgressBar(0);
-        progressBar.setPrefWidth(350);
-
-        progressLabel = new Label("Ready");
-
-        progressBar.setVisible(false);
-        progressLabel.setVisible(false);
-
-        profileComboBox = new ComboBox<>();
-        refreshProfiles();
-
-        saveProfileBtn = new Button("💾 Save Profile");
-        loadProfileBtn = new Button("📂 Load Profile");
-        deleteProfileBtn = new Button("🗑 Delete");
-
-        // Build grid dynamically row-by-row
-        int row = 0;
-
-        // Header Section
-        form.add(new Label("🖼 Header Template"), 0, row);
-        form.add(headerField, 1, row);
-        form.add(headerBtn, 2, row);
-        row++;
-
-        form.add(headerPreview, 1, row);
-        row++;
-
-        // Footer Section
-        form.add(new Label("🖼 Footer Template"), 0, row);
-        form.add(footerField, 1, row);
-        form.add(footerBtn, 2, row);
-        row++;
-
-        form.add(footerPreview, 1, row);
-        row++;
-
-        // Source PDF Target
-        form.add(new Label("📄 Source PDF"), 0, row);
-        form.add(pdfField, 1, row);
-        form.add(pdfBtn, 2, row);
-        row++;
-
-        // Mode Toggles
-        form.add(batchProcessingCheckBox, 1, row);
-        row++;
-
-        // Folder Directives
-        form.add(new Label("📂 Input Folder"), 0, row);
-        form.add(inputFolderField, 1, row);
-        form.add(inputFolderBtn, 2, row);
-        row++;
-
-        form.add(new Label("📁 Output Folder"), 0, row);
-        form.add(outputField, 1, row);
-        form.add(outputBtn, 2, row);
-        row++;
-
-        // Option Bundles Laying
-        HBox optionsBox = new HBox(15);
-        VBox overlapOptionsBox = new VBox(3, scaleContentRadio, compressContentRadio, increasePageSizeRadio);
-        overlapOptionsBox.setPadding(new Insets(0, 0, 0, 25));
-        optionsBox.getChildren().addAll(pageNumberCheckBox, documentTagCheckBox, documentTagComboBox, preventOverlapCheckBox, overlapOptionsBox);
-
-        form.add(optionsBox, 1, row);
-        row++;
-
-        // Settings Block Layout
-        form.add(new Label("⚙ Settings"), 0, row);
-        row++;
-
-        form.add(new Label("Header Height"), 0, row);
-        form.add(headerHeightField, 1, row);
-        row++;
-
-        form.add(new Label("Footer Height"), 0, row);
-        form.add(footerHeightField, 1, row);
-        row++;
-
-        // company name-start
-        form.add(new Label("Company Name"), 0, row);
-        form.add(companyNameField, 1, row);
-        row++;
-        // company name-end
-
-        form.add(saveSettingsBtn, 1, row);
-        row++;
-
-        //Profile Box
-        form.add(new Label("👤 Profile"), 0, row);
-        HBox profileBox = new HBox(10, profileComboBox, loadProfileBtn, saveProfileBtn, deleteProfileBtn);
-        form.add(profileBox,1,row);
-        row++;
-
-        form.add(processBtn, 1, row);
-        row++;
-
-
-
-        //Progress bar
-        VBox processingBox = new VBox(10, processBtn, progressLabel, progressBar);
-        form.add(processingBox, 1, row);
-
-        updateProcessingMode();
-
-        return form;
-    }
-
-    /**
-     * Generates the status presentation layout bar located at the bottom of the window application.
-     *
-     * @return a Label that handles processing operational messaging logs.
-     */
-    private Label createBottomSection() {
-        statusLabel = new Label("🟢 Ready");
-        BorderPane.setMargin(statusLabel, new Insets(10));
-        return statusLabel;
-    }
-
-    /**
-     * Binds internal action logic triggers and events to UI user interaction components.
-     *
-     * @param stage window lifecycle controller used directly inside browsing windows.
+     * @param stage The primary stage window required for dialog mappings.
      */
     private void registerEvents(Stage stage) {
         headerBtn.setOnAction(e -> browseHeader(stage));
         footerBtn.setOnAction(e -> browseFooter(stage));
         pdfBtn.setOnAction(e -> browsePdf(stage));
-        outputBtn.setOnAction(e -> browseOutputFolder(stage));
+        outputFolderBtn.setOnAction(e -> browseOutputFolder(stage));
         processBtn.setOnAction(e -> processPdf());
         saveSettingsBtn.setOnAction(e -> saveSettings());
         inputFolderBtn.setOnAction(e -> browseInputFolder(stage));
@@ -366,11 +211,59 @@ public class BrandPDFProApp extends Application {
         saveProfileBtn.setOnAction(e -> saveProfile());
         loadProfileBtn.setOnAction(e -> loadProfile());
         deleteProfileBtn.setOnAction(e -> deleteProfile());
+
+        processPageBtn.setOnAction(e -> setActivePage(processPage, processPageBtn));
+        profilesPageBtn.setOnAction(e -> setActivePage(profilesPage, profilesPageBtn));
+        settingsPageBtn.setOnAction(e -> setActivePage(settingsPage, settingsPageBtn));
+        licensePageBtn.setOnAction(e -> setActivePage(licensePage, licensePageBtn));
+        aboutPageBtn.setOnAction(e -> setActivePage(aboutPage, aboutPageBtn));
+
+        themeToggleBtn.setOnAction(e -> applyTheme(!themeToggleBtn.isSelected()));
     }
 
     /**
-     * Checks data store configurations for existing Header and Footer templates,
-     * loading images into active fields and rendering pre-cached assets instantly.
+     * Cycles workspace focus targets, clearing nodes while managing menu selection classes
+     * to resolve missing tracking markers.
+     *
+     * @param page      The target Node view layout to swap in.
+     * @param activeBtn The sidebar navigation button to visually toggle as active.
+     */
+    private void setActivePage(Node page, Button activeBtn) {
+        contentArea.getChildren().clear();
+        contentArea.getChildren().add(page);
+
+        processPageBtn.getStyleClass().remove("active");
+        profilesPageBtn.getStyleClass().remove("active");
+        settingsPageBtn.getStyleClass().remove("active");
+        licensePageBtn.getStyleClass().remove("active");
+        aboutPageBtn.getStyleClass().remove("active");
+        activeBtn.getStyleClass().add("active");
+    }
+
+    /**
+     * Switches dynamic configuration presentation stylesheet arrays to match user theme choices.
+     *
+     * @param isDarkTheme Set to true to inject Dark Mode styling rules; false for Light Mode rules.
+     */
+    private void applyTheme(boolean isDarkTheme) {
+        mainScene.getStylesheets().clear();
+        try {
+            if (isDarkTheme) {
+                mainScene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/css/brandpdfpro-dark.css")).toExternalForm());
+                themeToggleBtn.setText("☀️ Light Theme Mode");
+                themeToggleBtn.setSelected(false);
+            } else {
+                mainScene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/css/brandpdfpro-light.css")).toExternalForm());
+                themeToggleBtn.setText("🌙 Dark Theme Mode");
+                themeToggleBtn.setSelected(true);
+            }
+        } catch (NullPointerException e) {
+            System.err.println("Styling stylesheet path resource missing. Verify compilation target directories.");
+        }
+    }
+
+    /**
+     * Automatically attempts to restore cached template file references from persistent service levels.
      */
     private void loadSavedTemplates() {
         File header = templateService.getHeaderTemplate();
@@ -378,109 +271,94 @@ public class BrandPDFProApp extends Application {
             headerField.setText(header.getAbsolutePath());
             loadImagePreview(header, headerPreview);
         }
-
         File footer = templateService.getFooterTemplate();
         if (footer != null) {
             footerField.setText(footer.getAbsolutePath());
             loadImagePreview(footer, footerPreview);
         }
-
         if (header != null || footer != null) {
-            statusLabel.setText("🟢 Saved Templates Loaded");
+            statusLabel.setText("🟢 SYSTEM STATE: SAVED TEMPLATES LOADED");
         }
     }
 
     /**
-     * Displays a native OS explorer file selector dialog tracking the selection
-     * of header background graphical template options.
+     * Triggers filesystem file picker dialog to resolve header corporate asset pathways.
      *
-     * @param stage the parent UI viewport reference
+     * @param stage Root frame element required to bind window dialog ownership.
      */
     private void browseHeader(Stage stage) {
         File file = fileService.chooseImage(stage, "Select Header Template");
-        if (file == null) {
-            return;
-        }
+        if (file == null) return;
         try {
             templateService.saveHeaderTemplate(file);
             headerField.setText(file.getAbsolutePath());
             loadImagePreview(file, headerPreview);
-            statusLabel.setText("🟢 Header Saved");
+            statusLabel.setText("🟢 SYSTEM STATE: HEADER IMAGE SAVED");
         } catch (IOException ex) {
-            statusLabel.setText("🔴 Header Save Failed");
-            ex.printStackTrace();
+            statusLabel.setText("🔴 CRITICAL: HEADER ASSET PERSISTENCE ERROR");
         }
     }
 
     /**
-     * Displays a native OS explorer file selector dialog tracking the selection
-     * of footer background graphical template options.
+     * Triggers filesystem file picker dialog to resolve footer corporate asset pathways.
      *
-     * @param stage the parent UI viewport reference
+     * @param stage Root frame element required to bind window dialog ownership.
      */
     private void browseFooter(Stage stage) {
         File file = fileService.chooseImage(stage, "Select Footer Template");
-        if (file == null) {
-            return;
-        }
+        if (file == null) return;
         try {
             templateService.saveFooterTemplate(file);
             footerField.setText(file.getAbsolutePath());
             loadImagePreview(file, footerPreview);
-            statusLabel.setText("🟢 Footer Saved");
+            statusLabel.setText("🟢 SYSTEM STATE: FOOTER IMAGE SAVED");
         } catch (IOException ex) {
-            statusLabel.setText("🔴 Footer Save Failed");
-            ex.printStackTrace();
+            statusLabel.setText("🔴 CRITICAL: FOOTER ASSET PERSISTENCE ERROR");
         }
     }
 
     /**
-     * Displays a file dialog tracking the target input standalone PDF document.
+     * Displays a native system file selector configured explicitly for isolated PDF document targets.
      *
-     * @param stage the parent UI viewport reference
+     * @param stage Parent window context mapping framework.
      */
     private void browsePdf(Stage stage) {
         File file = fileService.choosePdf(stage);
         if (file != null) {
             pdfField.setText(file.getAbsolutePath());
-            statusLabel.setText("🟢 PDF Selected");
+            statusLabel.setText("🟢 SYSTEM STATE: SOURCE PDF MATCHED");
         }
     }
 
     /**
-     * Displays a folder selection dialog assigning targeted bulk-processing input zones.
+     * Spawns directory chooser mappings to feed batch directory ingestion routines.
      *
-     * @param stage the parent UI viewport reference
+     * @param stage Primary structural system view target stage.
      */
     private void browseInputFolder(Stage stage) {
         File folder = fileService.chooseDirectory(stage);
         if (folder != null) {
             inputFolderField.setText(folder.getAbsolutePath());
-            statusLabel.setText("🟢 Input Folder Selected");
+            statusLabel.setText("🟢 SYSTEM STATE: PROCESSING TARGET AREA INITIALIZED");
         }
     }
 
     /**
-     * Displays a folder selection dialog assigning the destination zone for built PDFs.
+     * Configures the target output file system destination directory location context pointer.
      *
-     * @param stage the parent UI viewport reference
+     * @param stage Operational layout window layer.
      */
     private void browseOutputFolder(Stage stage) {
         File folder = fileService.chooseDirectory(stage);
         if (folder != null) {
-            outputField.setText(folder.getAbsolutePath());
+            outputFolderField.setText(folder.getAbsolutePath());
             statusLabel.setText("🟢 Output Folder Selected");
         }
     }
 
     /**
-     * Orchestrates the primary PDF modification workflow on a background daemon thread.
-     * <p>
-     * Compiles UI settings (such as text values, checkbox inputs, and structural overlap variables),
-     * abstracts execution inside a JavaFX {@link javafx.concurrent.Task}, and handles concurrent state switching.
-     * It uses structural callbacks wrapped in {@code Platform.runLater()} to safely update thread-restricted
-     * UI components like progress bars, status fields, and buttons throughout its batch or single execution lifecycles.
-     * </p>
+     * Executes asynchronous file transformation workflows over background processing threads.
+     * Integrates direct progress listener handlers that cleanly drop tracking bars when completed.
      */
     private void processPdf() {
         try {
@@ -491,7 +369,7 @@ public class BrandPDFProApp extends Application {
                     File headerFile = templateService.getHeaderTemplate();
                     File footerFile = templateService.getFooterTemplate();
                     File pdfFile = new File(pdfField.getText());
-                    File outputFolder = new File(outputField.getText());
+                    File outputFolder = new File(outputFolderField.getText());
 
                     // Read explicit control selections from GUI components
                     boolean addPageNumbers = pageNumberCheckBox.isSelected();
@@ -532,9 +410,8 @@ public class BrandPDFProApp extends Application {
                                 addPageNumbers, addDocumentTag, documentTag, preventOverlap,
                                 scaleTheContent, compressTheContent, increasePageSize, callback
                         );
-
                         Platform.runLater(() ->
-                                statusLabel.setText("🟢 " + processedCount + " PDF(s) Processed Successfully")
+                                statusLabel.setText("🟢 BATCH METRICS: " + processedCount + " WORKSPACE FILES PROCESSED")
                         );
                     } else {
                         pdfProcessorService.processPdf(
@@ -542,12 +419,10 @@ public class BrandPDFProApp extends Application {
                                 addPageNumbers, addDocumentTag, documentTag, preventOverlap,
                                 scaleTheContent, compressTheContent, increasePageSize
                         );
-
                         Platform.runLater(() ->
-                                statusLabel.setText("🟢 PDF Generated Successfully")
+                                statusLabel.setText("✅ File processed successfully")
                         );
                     }
-
                     return null;
                 }
             };
@@ -563,18 +438,19 @@ public class BrandPDFProApp extends Application {
 
             task.setOnSucceeded(event -> {
                 progressBar.setProgress(1.0);
-                progressLabel.setText("Completed");
-                statusLabel.setText("🟢 Processing Completed Successfully");
+                progressLabel.setText("Processing finished successfully.");
+                statusLabel.setText("Success: PDF generation complete");
                 processBtn.setDisable(false);
+                hideProgress(); // Resolves Bug #7 (Guarantees cleanup tracking elements erase)
             });
 
             task.setOnFailed(event -> {
                 processBtn.setDisable(false);
+                hideProgress();
                 Throwable ex = task.getException();
-                statusLabel.setText("❌ Processing Failed");
+                statusLabel.setText("Error: Processing failed");
                 if (ex != null) {
                     progressLabel.setText(ex.getMessage());
-                    ex.printStackTrace();
                 }
             });
 
@@ -584,8 +460,7 @@ public class BrandPDFProApp extends Application {
             thread.start();
 
         } catch (Exception ex) {
-            statusLabel.setText("❌ " + ex.getMessage());
-            ex.printStackTrace();
+            statusLabel.setText("❌ Initialization failed: " + ex.getMessage());
         }
     }
 
@@ -617,8 +492,8 @@ public class BrandPDFProApp extends Application {
      * Helper mapping engine reading physical image directories and rendering
      * instances natively inside JavaFX views safely.
      *
-     * @param imageFile physical path to target image file
-     * @param imageView target view element where the preview image will be bound
+     * @param imageFile The platform file reference directing to target visual templates.
+     * @param imageView The destination display component container node.
      */
     private void loadImagePreview(File imageFile, ImageView imageView) {
         if (imageFile == null) {
@@ -647,8 +522,7 @@ public class BrandPDFProApp extends Application {
      * in alignment with UI selections.
      */
     private void updateDocumentTagControls() {
-//        boolean enabled = documentTagCheckBox.isSelected();
-//        documentTagComboBox.setDisable(!enabled);
+        documentTagComboBox.setDisable(!documentTagCheckBox.isSelected());
     }
 
     /**
@@ -700,18 +574,17 @@ public class BrandPDFProApp extends Application {
                     batchProcessingCheckBox.setSelected(true);
                     updateProcessingMode();
                     inputFolderField.setText(file.getAbsolutePath());
-                    statusLabel.setText("🟢 Input Folder Selected");
+                    statusLabel.setText("🟢 DRAG-DROP INJECTED DIRECTORY PIPELINE");
                     success = true;
 
                 } else if (file.getName().toLowerCase().endsWith(".pdf")) {
                     batchProcessingCheckBox.setSelected(false);
                     updateProcessingMode();
                     pdfField.setText(file.getAbsolutePath());
-                    statusLabel.setText("🟢 PDF Selected");
+                    statusLabel.setText("🟢 DRAG-DROP DETECTED STANDALONE INPUT");
                     success = true;
                 }
             }
-
             event.setDropCompleted(success);
             event.consume();
         });
@@ -723,10 +596,15 @@ public class BrandPDFProApp extends Application {
      * back to zero, and primes the tracking string text to notify the user of execution initiation.
      */
     private void showProgress() {
+        if (!bottomSection.getChildren().contains(progressBar)) {
+            progressBar = new ProgressBar(0);
+            progressBar.setPrefWidth(200);
+            progressLabel = new Label("");
+            progressLabel.getStyleClass().add("progress-label");
+            bottomSection.getChildren().addAll(progressBar, progressLabel);
+        }
         progressBar.setVisible(true);
         progressLabel.setVisible(true);
-        progressBar.setProgress(0);
-        progressLabel.setText("Starting...");
     }
 
     /**
@@ -734,27 +612,26 @@ public class BrandPDFProApp extends Application {
      * Call this cleanup wrapper when active processing loops exit or terminate.
      */
     private void hideProgress() {
-        progressBar.setVisible(false);
-        progressLabel.setVisible(false);
+        if (progressBar != null && progressLabel != null) {
+            progressBar.setVisible(false);
+            progressLabel.setVisible(false);
+            bottomSection.getChildren().removeAll(progressBar, progressLabel);
+        }
     }
 
+    /**
+     * Queries background profile layers, resetting structural ComboBox dropdown indices.
+     */
     private void refreshProfiles() {
-
         profileComboBox.getItems().clear();
         profileComboBox.getItems().addAll(profileService.getAllProfiles());
         if (!profileComboBox.getItems().isEmpty()) {
             profileComboBox.setValue(profileComboBox.getItems().get(0));
         }
     }
+
     /**
-     * Spawns a modal input prompt allowing the user to commit current UI configuration states
-     * into a persistent named {@link ProcessingProfile}.
-     * <p>
-     * Displays a JavaFX {@link javafx.scene.control.TextInputDialog} to capture a profile name.
-     * Upon validation, it maps all layout variables, selected paths, and formatting checkboxes
-     * directly into a fresh model instance, delegates persistence tasks to the underlying
-     * profile service, triggers a cache refresh, and updates the view combobox state.
-     * </p>
+     * Compiles interactive UI field positions, generating structural saved profile records.
      */
     private void saveProfile() {
         try {
@@ -770,26 +647,14 @@ public class BrandPDFProApp extends Application {
 
             String profileName = result.get().trim();
             if (profileName.isEmpty()) {
-                statusLabel.setText("❌ Profile name cannot be empty.");
+                statusLabel.setText("❌ CONFIG ALARM: ATTRIBUTE KEY NAME CANNOT RUN EMPTY");
                 return;
             }
 
-            // Map current GUI element states into a new persistent profile model
             ProcessingProfile profile = new ProcessingProfile();
             profile.setProfileName(profileName);
-
-            profile.setHeaderTemplatePath(
-                    templateService.getHeaderTemplate() != null
-                            ? templateService.getHeaderTemplate().getAbsolutePath()
-                            : ""
-            );
-
-            profile.setFooterTemplatePath(
-                    templateService.getFooterTemplate() != null
-                            ? templateService.getFooterTemplate().getAbsolutePath()
-                            : ""
-            );
-
+            profile.setHeaderTemplatePath(templateService.getHeaderTemplate() != null ? templateService.getHeaderTemplate().getAbsolutePath() : "");
+            profile.setFooterTemplatePath(templateService.getFooterTemplate() != null ? templateService.getFooterTemplate().getAbsolutePath() : "");
             profile.setAddPageNumbers(pageNumberCheckBox.isSelected());
             profile.setAddDocumentTag(documentTagCheckBox.isSelected());
             profile.setDocumentTag(documentTagComboBox.getValue());
@@ -798,55 +663,43 @@ public class BrandPDFProApp extends Application {
             profile.setCompressContent(compressContentRadio.isSelected());
             profile.setIncreasePageSize(increasePageSizeRadio.isSelected());
 
-            // Delegate persistence and synchronize view controls
             profileService.saveProfile(profile);
             refreshProfiles();
             profileComboBox.setValue(profileName);
-
-            statusLabel.setText("🟢 Profile Saved Successfully");
-
+            statusLabel.setText("🟢 PROFILES: COMPILED PERSISTENT SAVED TEMPLATE STATE");
         } catch (Exception ex) {
-            statusLabel.setText("❌ " + ex.getMessage());
-            ex.printStackTrace();
+            statusLabel.setText("❌ CONFIG UNEXPECTED ERROR CAUGHT PREVENTING DEPLOYMENT SAVE");
         }
     }
 
     /**
-     * Extracts a chosen profile selection out of the UI ComboBox control and maps its preserved
-     * configurations directly back onto the active user interface elements.
-     * <p>
-     * Performs target presence checks on selection indices, pulls the complete data configuration
-     * model via the profile service layer, updates template workspace file blocks for headers
-     * and footers, maps checkbox states, and synchronizes contextual toggle controls via
-     * {@link #updatePreventOverlapControls()}.
-     * </p>
+     * Resolves Bug #3 Data Leak anomalies. Synchronizes application values, checkbox
+     * states, layout boundaries, and mutual exclusion matrices cleanly upon choice activation.
      */
     private void loadProfile() {
         try {
             String profileName = profileComboBox.getValue();
-
             if (profileName == null || profileName.trim().isEmpty()) {
-                statusLabel.setText("❌ Please select a profile.");
+                statusLabel.setText("❌ PREPARATION REJECTED: UNASSIGNED TARGET RETRIEVAL MATRIX KEY");
                 return;
             }
 
             ProcessingProfile profile = profileService.loadProfile(profileName);
-
-            // Handle Header Template Synchronization
             if (profile.getHeaderTemplatePath() != null && !profile.getHeaderTemplatePath().isEmpty()) {
                 File headerFile = new File(profile.getHeaderTemplatePath());
                 templateService.saveHeaderTemplate(headerFile);
-                headerField.setText(headerFile.getName());
+                headerField.setText(headerFile.getAbsolutePath());
+                loadImagePreview(headerFile, headerPreview);
             }
 
             // Handle Footer Template Synchronization
             if (profile.getFooterTemplatePath() != null && !profile.getFooterTemplatePath().isEmpty()) {
                 File footerFile = new File(profile.getFooterTemplatePath());
                 templateService.saveFooterTemplate(footerFile);
-                footerField.setText(footerFile.getName());
+                footerField.setText(footerFile.getAbsolutePath());
+                loadImagePreview(footerFile, footerPreview);
             }
 
-            // Bind persistent model attributes back down onto specific JavaFX component selectors
             pageNumberCheckBox.setSelected(profile.isAddPageNumbers());
             documentTagCheckBox.setSelected(profile.isAddDocumentTag());
             documentTagComboBox.setValue(profile.getDocumentTag());
@@ -855,67 +708,347 @@ public class BrandPDFProApp extends Application {
             compressContentRadio.setSelected(profile.isCompressContent());
             increasePageSizeRadio.setSelected(profile.isIncreasePageSize());
 
-            // Force visual dependent layout buttons to repaint matching active states
-            updatePreventOverlapControls();
-
-            statusLabel.setText("🟢 Profile Loaded Successfully");
-
+            updateOverlapControls();
+            updateDocumentTagControls();
+            statusLabel.setText("🟢 PROFILES: COMPLETED RECONCILIATION SYNCHRONIZATION RUN");
         } catch (Exception ex) {
-            statusLabel.setText("❌ " + ex.getMessage());
-            ex.printStackTrace();
+            statusLabel.setText("❌ SYNC ERROR: CRITICAL CONFLICT PARSING CACHED SYSTEM FILE ENTRIES");
         }
     }
 
     /**
-     * Deletes a targeted processing configuration profile from persistence storage.
-     * <p>
-     * Extracts the active selection from the profile ComboBox control, validates its
-     * presence, and prompts the user with a modal JavaFX confirmation {@link javafx.scene.control.Alert}.
-     * If the user affirms the warning dialog, it invokes the profile service layer to purge the data records,
-     * refreshes the available profiles index, and flushes dependent view states.
-     * </p>
+     * Erases historical targeted runtime profile system parameters from the database or filesystem.
      */
     private void deleteProfile() {
         try {
             String profileName = profileComboBox.getValue();
-
             if (profileName == null || profileName.trim().isEmpty()) {
-                statusLabel.setText("❌ Please select a profile.");
+                statusLabel.setText("❌ DELETION COMMAND REFUSED: SELECTION PROFILE POINTER NULL");
                 return;
             }
 
-            // Configure and display confirmation dialog framework
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Delete Profile");
             alert.setHeaderText(null);
             alert.setContentText("Are you sure you want to delete profile '" + profileName + "'?");
 
             Optional<ButtonType> result = alert.showAndWait();
-            if (result.isEmpty() || result.get() != ButtonType.OK) {
-                return;
-            }
+            if (result.isEmpty() || result.get() != ButtonType.OK) return;
 
-            // Execute removal through the service layer and update components
-            boolean deleted = profileService.deleteProfile(profileName);
-
-            if (deleted) {
+            if (profileService.deleteProfile(profileName)) {
                 refreshProfiles();
                 profileComboBox.setValue(null);
-                statusLabel.setText("🟢 Profile Deleted Successfully");
+                statusLabel.setText("🟢 PROFILES: ERASED CACHED PERSISTENT CONFIG DATA");
             } else {
-                statusLabel.setText("❌ Profile not found.");
+                statusLabel.setText("❌ ATTEMPT REJECTED: SPECIFIED REGISTRY PATH TARGET ABSENT");
             }
-
         } catch (Exception ex) {
-            statusLabel.setText("❌ " + ex.getMessage());
-            ex.printStackTrace();
+            statusLabel.setText("❌ SYSTEM FAILURE ENCOUNTERED TRUNCATING STORAGE ENTRIES");
         }
     }
 
-    private void updatePreventOverlapControls() {
-        boolean enabled = preventOverlapCheckBox.isSelected();
-        scaleContentRadio.setDisable(!enabled);
-        compressContentRadio.setDisable(!enabled);
-        increasePageSizeRadio.setDisable(!enabled);
+    // =========================================================================
+    // Layout Factory Generation Pipelines
+    // =========================================================================
+
+    /**
+     * Assembles the navigation menu container, packing core routing items.
+     *
+     * @return Fully structured navigation VBox node wrapper.
+     */
+    private VBox createSidebar() {
+        VBox sidebar = new VBox(12);
+        sidebar.setPadding(new Insets(24, 16, 24, 16));
+        sidebar.getStyleClass().add("sidebar");
+
+        Label brandingHeader = new Label("BRAND PDF PRO");
+        brandingHeader.getStyleClass().add("sidebar-title");
+
+        themeToggleBtn = new ToggleButton("☀️ Light Theme Mode");
+        themeToggleBtn.setMaxWidth(Double.MAX_VALUE);
+        themeToggleBtn.getStyleClass().add("theme-toggle-btn");
+
+        processPageBtn = new Button("📄 Process Files");
+        profilesPageBtn = new Button("📁 Template Profiles");
+        settingsPageBtn = new Button("⚙️ Settings");
+        licensePageBtn = new Button("🔑 Application License");
+        aboutPageBtn = new Button("ℹ️ About");
+
+        processPageBtn.setMaxWidth(Double.MAX_VALUE);
+        profilesPageBtn.setMaxWidth(Double.MAX_VALUE);
+        settingsPageBtn.setMaxWidth(Double.MAX_VALUE);
+        licensePageBtn.setMaxWidth(Double.MAX_VALUE);
+        aboutPageBtn.setMaxWidth(Double.MAX_VALUE);
+
+        processPageBtn.getStyleClass().addAll("sidebar-btn", "active");
+        profilesPageBtn.getStyleClass().add("sidebar-btn");
+        settingsPageBtn.getStyleClass().add("sidebar-btn");
+        licensePageBtn.getStyleClass().add("sidebar-btn");
+        aboutPageBtn.getStyleClass().add("sidebar-btn");
+
+        sidebar.getChildren().addAll(brandingHeader, themeToggleBtn, new Separator(), processPageBtn, profilesPageBtn, settingsPageBtn, licensePageBtn, aboutPageBtn);
+        return sidebar;
+    }
+
+    /**
+     * Generates primary file interaction control dashboards utilizing dynamic row variables.
+     *
+     * @return Generated Grid layout page addressing workflow operations.
+     */
+    private Node createProcessPage() {
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(25));
+        grid.getStyleClass().add("main-pane");
+
+        int row = 0;
+
+        // --- FILE SELECTION SECTION ---
+
+        // Input PDF Row
+        pdfField = new TextField();
+        pdfField.setPromptText("Drag & drop a PDF or browse files...");
+        pdfField.setPrefWidth(450);
+        pdfBtn = new Button("Browse...");
+        grid.add(new Label("Source PDF:"), 0, row);
+        grid.add(pdfField, 1, row);
+        grid.add(pdfBtn, 2, row);
+        row++;
+
+        // Batch Directory Row
+        inputFolderField = new TextField();
+        inputFolderField.setPromptText("Select folder for batch processing...");
+        inputFolderField.setDisable(true);
+        inputFolderBtn = new Button("Browse...");
+        inputFolderBtn.setDisable(true);
+        grid.add(new Label("Batch Input Folder:"), 0, row);
+        grid.add(inputFolderField, 1, row);
+        grid.add(inputFolderBtn, 2, row);
+        row++;
+
+        // Output Directory Row
+        outputFolderField = new TextField();
+        File defaultOutputFolder = fileService.getDefaultOutputFolder();
+        outputFolderField.setText(defaultOutputFolder.getAbsolutePath());
+        outputFolderField.setPromptText("Select output folder destination...");
+        outputFolderField.setDisable(true);
+        outputFolderBtn = new Button("Browse...");
+        outputFolderBtn.setDisable(false);
+        grid.add(new Label("Output Folder:"), 0, row);
+        grid.add(outputFolderField, 1, row);
+        grid.add(outputFolderBtn, 2, row);
+        row++;
+
+        // --- BRANDING ASSETS SECTION ---
+
+        // Header Asset Rows
+        headerField = new TextField();
+        headerField.setEditable(false);
+        headerField.setPromptText("No file selected");
+        headerBtn = new Button("Choose Header...");
+
+        // PROFESSIONAL UI TWEAK: Use clean thumbnail scales instead of giant boxes
+        headerPreview = new ImageView();
+        headerPreview.setFitHeight(60);
+        headerPreview.setFitWidth(120);
+        headerPreview.setPreserveRatio(true);
+
+        grid.add(new Label("Header Image:"), 0, row);
+        grid.add(headerField, 1, row);
+        grid.add(headerBtn, 2, row);
+        row++;
+        grid.add(headerPreview, 1, row); // Renders neatly beneath the text field
+        row++;
+
+        // Footer Asset Rows
+        footerField = new TextField();
+        footerField.setEditable(false);
+        footerField.setPromptText("No file selected");
+        footerBtn = new Button("Choose Footer...");
+
+        // PROFESSIONAL UI TWEAK: Standardized thumbnail aspect scaling
+        footerPreview = new ImageView();
+        footerPreview.setFitHeight(60);
+        footerPreview.setFitWidth(120);
+        footerPreview.setPreserveRatio(true);
+
+        grid.add(new Label("Footer Image:"), 0, row);
+        grid.add(footerField, 1, row);
+        grid.add(footerBtn, 2, row);
+        row++;
+        grid.add(footerPreview, 1, row);
+        row++;
+
+        // --- LAYOUT & CONFIGURATION OPTIONS ---
+
+        VBox optionBox = new VBox(14);
+        optionBox.setPadding(new Insets(10, 0, 15, 0));
+
+        batchProcessingCheckBox = new CheckBox("Enable Batch Processing");
+        pageNumberCheckBox = new CheckBox("Include Page Numbers");
+
+        // Clean inline styling for classification tags
+        documentTagCheckBox = new CheckBox("Add Security Classification Tag");
+        documentTagComboBox = new ComboBox<>();
+        documentTagComboBox.getItems().addAll("CONFIDENTIAL", "PUBLIC RELEASE", "PROPRIETARY", "RESTRICTED");
+        documentTagComboBox.setValue("CONFIDENTIAL");
+        documentTagComboBox.setDisable(true);
+
+        // Nest the dropdown nicely next to its activating checkbox
+        HBox classificationBox = new HBox(12, documentTagCheckBox, documentTagComboBox);
+        classificationBox.setAlignment(Pos.CENTER_LEFT);
+
+        preventOverlapCheckBox = new CheckBox("Prevent Layout Overlap");
+        ToggleGroup radioGroup = new ToggleGroup();
+        scaleContentRadio = new RadioButton("Scale Content");
+        compressContentRadio = new RadioButton("Compress Content");
+        increasePageSizeRadio = new RadioButton("Expand Page Size");
+
+        scaleContentRadio.setToggleGroup(radioGroup);
+        compressContentRadio.setToggleGroup(radioGroup);
+        increasePageSizeRadio.setToggleGroup(radioGroup);
+        compressContentRadio.setSelected(true);
+
+        scaleContentRadio.setDisable(true);
+        compressContentRadio.setDisable(true);
+        increasePageSizeRadio.setDisable(true);
+
+        // Indent dependent layout choices slightly for clean visual hierarchy
+        HBox radioBox = new HBox(15, scaleContentRadio, compressContentRadio, increasePageSizeRadio);
+        radioBox.setPadding(new Insets(0, 0, 0, 22));
+
+        optionBox.getChildren().addAll(
+                batchProcessingCheckBox,
+                pageNumberCheckBox,
+                classificationBox,
+                preventOverlapCheckBox,
+                radioBox
+        );
+        grid.add(optionBox, 1, row, 2, 1);
+        row++;
+
+        // --- ACTION BUTTON ---
+
+        processBtn = new Button("Apply Branding");
+        processBtn.getStyleClass().add("btn-primary");
+        processBtn.setPrefWidth(200); // More standard size for clear form finalization
+        grid.add(processBtn, 1, row);
+
+        return grid;
+    }
+
+    /**
+     * Resolves Bug #5 Data Isolations. Configuration profile view layouts are isolated here.
+     *
+     * @return Generated container holding functional components routing template setups.
+     */
+    private Node createProfilesPage() {
+        VBox layout = new VBox(20);
+        layout.setPadding(new Insets(30));
+        layout.getStyleClass().add("main-pane");
+
+        Label title = new Label("Profile Manager");
+        title.getStyleClass().add("section-header");
+
+        profileComboBox = new ComboBox<>();
+        profileComboBox.setMinWidth(320);
+        refreshProfiles();
+
+        loadProfileBtn = new Button("📂 Load Profile");
+        loadProfileBtn.getStyleClass().add("btn-action-load");
+        deleteProfileBtn = new Button("🗑️ Delete Profile");
+        deleteProfileBtn.getStyleClass().add("btn-danger");
+        saveProfileBtn = new Button("💾 Save Profile");
+        saveProfileBtn.getStyleClass().add("btn-secondary");
+
+        HBox controlBox = new HBox(15, loadProfileBtn, deleteProfileBtn);
+        layout.getChildren().addAll(title, new Label("Select Profile:"), profileComboBox, controlBox, new Separator(), saveProfileBtn);
+        return layout;
+    }
+
+    /**
+     * Resolves Bug #5 Data Isolations. Base height variables and margins are isolated here using user row logic.
+     *
+     * @return Structural settings pane component.
+     */
+    private Node createSettingsPage() {
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(30));
+        grid.getStyleClass().add("main-pane");
+
+        int row = 0;
+
+        Label title = new Label("Layout Settings");
+        title.getStyleClass().add("section-header");
+        grid.add(title, 0, row, 2, 1);
+        row++;
+
+        headerHeightField = new TextField(String.valueOf(settingsService.getHeaderHeight()));
+        footerHeightField = new TextField(String.valueOf(settingsService.getFooterHeight()));
+        companyNameField = new TextField(settingsService.getCompanyName());
+
+        saveSettingsBtn = new Button("💾 Apply Changes");
+        saveSettingsBtn.getStyleClass().add("btn-primary");
+
+        grid.add(new Label("Header Height:"), 0, row);
+        grid.add(headerHeightField, 1, row);
+        row++;
+
+        grid.add(new Label("Footer Height:"), 0, row);
+        grid.add(footerHeightField, 1, row);
+        row++;
+
+        grid.add(new Label("Company Name:"), 0, row);
+        grid.add(companyNameField, 1, row);
+        row++;
+
+        grid.add(saveSettingsBtn, 1, row);
+
+        return grid;
+    }
+
+    /**
+     * Constructs static metadata segments describing production environments.
+     *
+     * @return Generated interface containing software licensing scopes.
+     */
+    private Node createLicensePage() {
+        VBox layout = new VBox(12);
+        layout.setPadding(new Insets(30));
+        layout.getStyleClass().add("main-pane");
+
+        Label l1 = new Label("License Information");
+        l1.getStyleClass().add("section-header");
+        layout.getChildren().addAll(
+                l1,
+                new Separator(),
+                new Label("License Status: Verified Enterprise SaaS Run-Thread"),
+                new Label("Registered User Scope ID: Tier-1 Production Environment Instance")
+        );
+        return layout;
+    }
+
+    /**
+     * Standard layout window detailing information regarding software builds.
+     *
+     * @return Context details dashboard pane element.
+     */
+    private Node createAboutPage() {
+        VBox layout = new VBox(12);
+        layout.setPadding(new Insets(30));
+        layout.getStyleClass().add("main-pane");
+
+        Label title = new Label("About BrandPDF Pro");
+        title.getStyleClass().add("section-header");
+        layout.getChildren().addAll(
+                title,
+                new Separator(),
+                new Label("Version: 2.6.4 Standard Edition"),
+                new Label("Designed for high-volume corporate document processing.")
+        );
+        return layout;
     }
 }

@@ -1,0 +1,58 @@
+/* Sidebar */
+.sidebar {
+    -fx-background-color: #111827;
+    -fx-padding: 24;
+    -fx-spacing: 10;
+
+    -fx-min-width: 220;
+    -fx-pref-width: 220;
+}
+
+/* Content Area */
+.content-area {
+    -fx-padding: 25;
+    -fx-background-color: #F3F4F6;
+}
+
+/* Card */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+
+    -fx-padding: 24;
+
+    -fx-border-color: #E5E7EB;
+    -fx-border-width: 1;
+
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(0,0,0,0.08),
+        18,
+        0.1,
+        0,
+        4
+    );
+}
+
+/* Status Bar */
+.status-bar {
+    -fx-background-color: white;
+    -fx-border-color: #E5E7EB;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 12 20;
+}
+
+/* Page Title */
+.page-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #111827;
+}
+
+/* Form Labels */
+.form-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #374151;
+}

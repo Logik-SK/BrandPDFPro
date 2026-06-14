@@ -48,7 +48,7 @@ public class BatchProcessorService {
             }
             System.out.println("Processing : " + pdfFile.getName());
             // Note: Original code logic maps 'scaleTheContent' to both of the trailing boolean parameters.
-            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, scaleTheContent,increasePageSize);
+            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, compressTheContent,increasePageSize);
         }
 
         return pdfFiles.length;
