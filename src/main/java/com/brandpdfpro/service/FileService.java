@@ -1,66 +1,83 @@
 package com.brandpdfpro.service;
 
+import com.brandpdfpro.controller.MainController;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 
 /**
  * Service responsible for managing file system operations.
- * Handles OS-native file dialog prompts for selecting images, PDFs, or
- * directories, and sets up the application's default data output fallback paths.
  */
 public class FileService {
 
+    private static final Logger logger = LoggerFactory.getLogger(FileService.class);
+
     /**
      * Displays an OS-native file picker dialog restricted to standard raster image formats.
-     *
-     * @param stage the parent JavaFX window scene context
-     * @param title the title text to display on the file modal window header
-     * @return a File reference pointing to the selected image, or null if canceled
      */
     public File chooseImage(Stage stage, String title) {
+        logger.info("Opening system file picker context for raster image selections.");
         FileChooser chooser = new FileChooser();
         chooser.setTitle(title);
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg"));
-        return chooser.showOpenDialog(stage);
+
+        File selectedFile = chooser.showOpenDialog(stage);
+        if (selectedFile != null) {
+            logger.info("Target image asset successfully resolved: {}", selectedFile.getName());
+        } else {
+            logger.debug("Image file picker session dismissed by the user.");
+        }
+        return selectedFile;
     }
 
     /**
      * Displays an OS-native file picker dialog restricted to PDF documents.
-     *
-     * @param stage the parent JavaFX window scene context
-     * @return a File reference pointing to the selected PDF, or null if canceled
      */
     public File choosePdf(Stage stage) {
+        logger.info("Opening system file picker context for source PDF document selection.");
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Select PDF File");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
-        return chooser.showOpenDialog(stage);
+
+        File selectedFile = chooser.showOpenDialog(stage);
+        if (selectedFile != null) {
+            logger.info("Target source PDF document successfully resolved: {}", selectedFile.getName());
+        } else {
+            logger.debug("PDF document file picker session dismissed by the user.");
+        }
+        return selectedFile;
     }
 
     /**
      * Displays an OS-native directory browser window framework allowing folder selection.
-     *
-     * @param stage the parent JavaFX window scene context
-     * @return a File reference representing the targeted directory, or null if canceled
      */
     public File chooseDirectory(Stage stage) {
+        logger.info("Opening system directory chooser workspace frame.");
         DirectoryChooser chooser = new DirectoryChooser();
         chooser.setTitle("Select Output Folder");
-        return chooser.showDialog(stage);
+
+        File selectedDir = chooser.showDialog(stage);
+        if (selectedDir != null) {
+            logger.info("Target file system folder location selected: {}", selectedDir.getAbsolutePath());
+        } else {
+            logger.debug("Directory layout browsing prompt dismissed by the user.");
+        }
+        return selectedDir;
     }
 
     /**
-     * Evaluates system path properties to resolve or safely construct a dedicated local
-     * application downloads directory placeholder for compiled PDF assets.
-     *
-     * @return a File handle mapping out the standard application folder path location
+     * Resolves or builds a dedicated application downloads folder location for compiled assets.
      */
     public File getDefaultOutputFolder() {
         String documentsPath = System.getProperty("user.home") + File.separator + "Downloads";
         File outputFolder = new File(documentsPath, "BrandPDFPro_Pdfs");
+
         if (!outputFolder.exists()) {
+            logger.info("Default local application workspace path absent. Generating structure: {}", outputFolder.getPath());
             outputFolder.mkdirs();
         }
         return outputFolder;

@@ -1,5 +1,9 @@
 package com.brandpdfpro.service;
 
+import com.brandpdfpro.controller.MainController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -7,71 +11,59 @@ import java.nio.file.StandardCopyOption;
 
 /**
  * Service responsible for managing background layout graphics templates.
- * Handles copying, storing, and loading physical header and footer image
- * assets into dedicated application template workspace directories.
  */
 public class TemplateService {
 
-    /** Directory name where background template image assets are cached. */
+    private static final Logger logger = LoggerFactory.getLogger(TemplateService.class);
+
     private static final String TEMPLATE_DIR = "templates";
-
-    /** Static storage filename assigned to the saved top header layout graphic. */
     private static final String HEADER_FILE = "header.png";
-
-    /** Static storage filename assigned to the saved bottom footer layout graphic. */
     private static final String FOOTER_FILE = "footer.png";
 
-    /**
-     * Constructs a new TemplateService and ensures the destination template storage
-     * folder structure physically exists on the disk.
-     */
     public TemplateService() {
         File directory = new File(TEMPLATE_DIR);
         if (!directory.exists()) {
+            logger.info("Templates storage directory absent. Generating folder context at: /{}", TEMPLATE_DIR);
             directory.mkdirs();
         }
     }
 
     /**
-     * Copies a targeted image file from its source directory location directly into
-     * the workspace templates cache, overwriting any pre-existing header asset.
+     * Copies a targeted image file from its source directory location directly into the workspace templates cache.
      *
-     * @param sourceFile  the original image file selected by the user
      * @throws IOException if a file copy stream error or write restriction occurs
      */
     public void saveHeaderTemplate(File sourceFile) throws IOException {
+        logger.info("Initiating persistence copy stream for new top header asset: {}", sourceFile.getName());
         File destination = new File(TEMPLATE_DIR, HEADER_FILE);
         Files.copy(sourceFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        logger.info("Header template asset committed successfully to workspace cache.");
     }
 
     /**
-     * Copies a targeted image file from its source directory location directly into
-     * the workspace templates cache, overwriting any pre-existing footer asset.
+     * Copies a targeted image file from its source directory location directly into the workspace templates cache.
      *
-     * @param sourceFile  the original image file selected by the user
      * @throws IOException if a file copy stream error or write restriction occurs
      */
     public void saveFooterTemplate(File sourceFile) throws IOException {
+        logger.info("Initiating persistence copy stream for new bottom footer asset: {}", sourceFile.getName());
         File destination = new File(TEMPLATE_DIR, FOOTER_FILE);
         Files.copy(sourceFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        logger.info("Footer template asset committed successfully to workspace cache.");
     }
 
-    /**
-     * Searches the local workspace template repository for an existing header template graphic.
-     *
-     * @return a File pointing to the active header template if present, otherwise null
-     */
+    // =========================================================================
+    // Cache Lookups
+    // =========================================================================
+
     public File getHeaderTemplate() {
+        logger.debug("Querying workspace template cache for an active header instance.");
         File file = new File(TEMPLATE_DIR, HEADER_FILE);
         return file.exists() ? file : null;
     }
 
-    /**
-     * Searches the local workspace template repository for an existing footer template graphic.
-     *
-     * @return a File pointing to the active footer template if present, otherwise null
-     */
     public File getFooterTemplate() {
+        logger.debug("Querying workspace template cache for an active footer instance.");
         File file = new File(TEMPLATE_DIR, FOOTER_FILE);
         return file.exists() ? file : null;
     }

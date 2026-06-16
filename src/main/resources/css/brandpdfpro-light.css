@@ -321,3 +321,12 @@
     -fx-font-size: 11px;
     -fx-text-fill: #334155;
 }
+.sub-header {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+.status-bar-version {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94A3B8;
+    -fx-font-weight: bold;
+}
