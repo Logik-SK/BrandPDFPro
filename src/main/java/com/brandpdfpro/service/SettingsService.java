@@ -1,5 +1,8 @@
 package com.brandpdfpro.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -8,41 +11,30 @@ import java.util.Properties;
 
 /**
  * Service responsible for managing user-modifiable application preferences.
- * Handles reading and writing attributes like header/footer heights, pagination
- * settings, and organizational labeling metadata directly into local property registries.
  */
 public class SettingsService {
 
-    /** Directory name where configuration and settings files are stored. */
-    private static final String CONFIG_DIR = "config";
+    private static final Logger logger = LoggerFactory.getLogger(SettingsService.class);
 
-    /** Filename of the target user preferences properties file. */
+    private static final String CONFIG_DIR = "config";
     private static final String SETTINGS_FILE = "settings.properties";
 
-    // Property Key Constants Map Keys
     private static final String HEADER_HEIGHT = "header.height";
     private static final String FOOTER_HEIGHT = "footer.height";
     private static final String ADD_PAGE_NUMBERS = "add.page.numbers";
     private static final String COMPANY_NAME = "company.name";
 
-    /** Internal properties registry holding active runtime user settings. */
     private final Properties properties = new Properties();
 
-    /**
-     * Constructs a new SettingsService and initializes runtime settings
-     * by verifying directory mappings and loading underlying workspace fields.
-     */
     public SettingsService() {
         initializeSettings();
     }
 
     /**
-     * Prepares configuration locations on disk. Spawns default property placeholder
-     * profiles if missing, before parsing file bytes into operational memory objects.
-     *
-     * @throws RuntimeException if an IOException occurs during settings environment initialization
+     * Prepares configuration locations on disk and handles runtime initialization.
      */
     private void initializeSettings() {
+        logger.info("Initializing user-modifiable application preferences.");
         try {
             createConfigDirectory();
             File settingsFile = getSettingsFile();
@@ -52,38 +44,31 @@ public class SettingsService {
             }
             loadSettings();
         } catch (IOException ex) {
+            logger.error("Fatal failure initializing system settings environment: {}", ex.getMessage(), ex);
             throw new RuntimeException("Unable to initialize settings.", ex);
         }
     }
 
     /**
-     * Checks for the presence of the configuration directory on the filesystem
-     * and attempts to create it if it does not exist.
+     * Creates the configuration directory if it does not exist.
      */
     private void createConfigDirectory() {
         File directory = new File(CONFIG_DIR);
         if (!directory.exists()) {
+            logger.info("Settings registry directory absent. Creating path context at: /{}", CONFIG_DIR);
             directory.mkdirs();
         }
     }
 
-    /**
-     * Instantiates a generic File pointing to the target settings file location.
-     *
-     * @return a File representation of the standard settings configuration path
-     */
     private File getSettingsFile() {
         return new File(CONFIG_DIR, SETTINGS_FILE);
     }
 
     /**
-     * Seeds base metadata configuration parameters into properties layouts
-     * and exports entries onto local disk segments.
-     *
-     * @param settingsFile the destination file handle where defaults should be stored
-     * @throws IOException if an error occurs while writing properties to the output stream
+     * Seeds default preference metrics into a fresh properties file schema layout.
      */
     private void createDefaultSettings(File settingsFile) throws IOException {
+        logger.info("Generating standard default user preferences profile layout.");
         Properties defaults = new Properties();
         defaults.setProperty(HEADER_HEIGHT, "80");
         defaults.setProperty(FOOTER_HEIGHT, "80");
@@ -92,101 +77,67 @@ public class SettingsService {
 
         try (FileOutputStream outputStream = new FileOutputStream(settingsFile)) {
             defaults.store(outputStream, "BrandPDF Pro Settings");
+            logger.info("Default preference fields successfully written down onto path: {}", settingsFile.getPath());
         }
     }
 
     /**
-     * Streams and maps active parameters directly out of the targeted configuration file
-     * on the system disk into active execution memory instances.
-     *
-     * @throws IOException if an error occurs while reading from the file input stream
+     * Streams and maps active parameters directly out of the settings file into memory.
      */
     public void loadSettings() throws IOException {
-        try (FileInputStream inputStream = new FileInputStream(getSettingsFile())) {
+        File settingsFile = getSettingsFile();
+        logger.info("Streaming user preferences attributes from storage entry: {}", settingsFile.getPath());
+        try (FileInputStream inputStream = new FileInputStream(settingsFile)) {
             properties.load(inputStream);
+            logger.info("Settings properties successfully parsed into memory caches.");
         }
     }
 
     /**
-     * flushes current memory-mapped property definitions back down onto the system file layers.
-     *
-     * @throws IOException if an error occurs while writing to the file output stream
+     * Flushes current memory-mapped property definitions back down onto the system file layers.
      */
     public void saveSettings() throws IOException {
-        try (FileOutputStream outputStream = new FileOutputStream(getSettingsFile())) {
+        File settingsFile = getSettingsFile();
+        logger.info("Flushing runtime preference modifications back down to path: {}", settingsFile.getPath());
+        try (FileOutputStream outputStream = new FileOutputStream(settingsFile)) {
             properties.store(outputStream, "BrandPDF Pro Settings");
+            logger.info("Global application properties cache committed successfully.");
         }
     }
 
-    /**
-     * Retrieves the structural dimension preference for header boundary height tracking.
-     *
-     * @return the header margin height value as a float, defaulting to 80.0f
-     */
+    // =========================================================================
+    // Accessors & Mutators
+    // =========================================================================
+
     public float getHeaderHeight() {
         return Float.parseFloat(properties.getProperty(HEADER_HEIGHT, "80"));
     }
 
-    /**
-     * Retrieves the structural dimension preference for footer boundary height tracking.
-     *
-     * @return the footer margin height value as a float, defaulting to 80.0f
-     */
     public float getFooterHeight() {
         return Float.parseFloat(properties.getProperty(FOOTER_HEIGHT, "80"));
     }
 
-    /**
-     * Evaluates state configurations to determine if dynamic pagination stamping is globally requested.
-     *
-     * @return true if page number inclusion options remain toggled active, otherwise false
-     */
     public boolean isPageNumberEnabled() {
         return Boolean.parseBoolean(properties.getProperty(ADD_PAGE_NUMBERS, "true"));
     }
 
-    /**
-     * Assigns custom scale dimensions directly into top header preference values.
-     *
-     * @param value new floating point vertical spacing constraint rule
-     */
+    public String getCompanyName() {
+        return properties.getProperty(COMPANY_NAME, "BrandPDFPro");
+    }
+
     public void setHeaderHeight(float value) {
         properties.setProperty(HEADER_HEIGHT, String.valueOf(value));
     }
 
-    /**
-     * Assigns custom scale dimensions directly into baseline footer preference values.
-     *
-     * @param value new floating point vertical spacing constraint rule
-     */
     public void setFooterHeight(float value) {
         properties.setProperty(FOOTER_HEIGHT, String.valueOf(value));
     }
 
-    /**
-     * Assigns runtime pagination indexing display toggle behaviors globally.
-     *
-     * @param value flag state controlling document footer indexing behaviors
-     */
     public void setPageNumberEnabled(boolean value) {
         properties.setProperty(ADD_PAGE_NUMBERS, String.valueOf(value));
     }
 
-    /**
-     * Assigns the targeted operational company name identity string directly into data blocks.
-     *
-     * @param value the target organizational entity name
-     */
     public void setCompanyName(String value) {
         properties.setProperty(COMPANY_NAME, String.valueOf(value));
-    }
-
-    /**
-     * Retrieves the active branding label definition applied during compiled build exports.
-     *
-     * @return organizational identity tracking label, defaulting to "BrandPDFPro"
-     */
-    public String getCompanyName() {
-        return properties.getProperty(COMPANY_NAME, "BrandPDFPro");
     }
 }

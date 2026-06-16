@@ -1,68 +1,76 @@
 package com.brandpdfpro.service;
 
+import com.brandpdfpro.controller.MainController;
+import com.brandpdfpro.model.ProcessingRequest;
 import com.brandpdfpro.service.SettingsService;
-
+import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.IOException;
-
+import java.util.Objects;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.multipdf.LayerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-import org.apache.pdfbox.multipdf.LayerUtility;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.util.Matrix;
-
-import java.awt.geom.AffineTransform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Service responsible for processing, scaling, and adding branding assets to PDF files.
- * Handles normal processing as well as advanced layout shifting to prevent text content
- * from clipping behind overlaid headers and footers.
  */
 public class PdfProcessorService {
 
-    // Programmatic Static Spacing Layout Rules
+    private static final Logger logger = LoggerFactory.getLogger(PdfProcessorService.class);
+
     private static final float PAGE_NUMBER_FONT_SIZE = 8f;
     private static final float PAGE_NUMBER_Y_POSITION = 20f;
     private static final float TAG_PADDING_X = 6f;
     private static final float TAG_PADDING_Y = 3f;
-    private static final float DOCUMENT_TAG_X_POSITION = 10f;
-    private static final float DOCUMENT_TAG_Y_POSITION = 50f;
-    private static final float DOCUMENT_TAG_FONT_SIZE = 8f;
 
-    /**
-     * Configuration instance tracking dimensions and company layout labels.
-     */
     private final SettingsService settingsService = new SettingsService();
 
     /**
-     * Entry-point method routing inbound PDF requests directly to either normal branding injection
-     * streams or spatial adjustment transformations depending on structural overlap flags.
+     * Unpacks a unified processing request capsule and routes it to the core execution engine.
      *
-     * @param headerFile         the physical image file applied as the template header layer
-     * @param footerFile         the physical image file applied as the template footer layer
-     * @param pdfFile            the origin source PDF document file reference
-     * @param outputFolder       the destination directory target where modifications are saved
-     * @param addPageNumbers     toggle flag specifying whether dynamic page indices are stamped
-     * @param addDocumentTag     toggle flag specifying whether dynamic security tags are stamped
-     * @param documentTag        the descriptive text classification metadata tag applied to files
-     * @param preventOverlap     toggle flag specifying whether bounding overflow logic is run
-     * @param scaleTheContent    toggle flag specifying content layout scaling adjustments
-     * @param compressTheContent toggle flag specifying content structure compression rules
-     * @throws IOException if file read/write mutations on file streams fail
+     * @throws IOException if source file resolution or file save mutations fail
      */
-    public void processPdf(File headerFile, File footerFile, File pdfFile, File outputFolder, boolean addPageNumbers,
-                           boolean addDocumentTag, String documentTag, boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent, boolean increasePageHeight) throws IOException {
+    public void processPdf(ProcessingRequest request) throws IOException {
+        processPdf(
+                request.getHeaderFile(),
+                request.getFooterFile(),
+                request.getPdfFile(),
+                request.getOutputFolder(),
+                request.isAddPageNumbers(),
+                request.isAddDocumentTag(),
+                request.getDocumentTag(),
+                request.isPreventOverlap(),
+                request.isScaleTheContent(),
+                request.isCompressTheContent(),
+                request.isIncreasePageSize()
+        );
+    }
+
+    /**
+     * Routes incoming execution parameters into standard branding injection streams or spatial modification pipelines.
+     *
+     * @throws IOException if source file read actions or destination file writes fail
+     */
+    public void processPdf(
+            File headerFile, File footerFile, File pdfFile, File outputFolder,
+            boolean addPageNumbers, boolean addDocumentTag, String documentTag,
+            boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent,
+            boolean increasePageHeight
+    ) throws IOException {
 
         if (preventOverlap) {
             if (increasePageHeight) {
                 processPdfWithPageExpansion(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag);
-
             } else {
                 processPdfWithOverlapPrevention(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, scaleTheContent, compressTheContent);
             }
@@ -72,32 +80,32 @@ public class PdfProcessorService {
     }
 
     /**
-     * Executes advanced layer matrix manipulations, capturing underlying PDF canvas space, shifting
-     * or compressing dimensions inside affine spaces to prevent content overlap with headers and footers.
+     * Compresses or uniformly scales down the original content stream, clearing safe margins to block overlap conflicts.
      */
-    private void processPdfWithOverlapPrevention(File headerFile, File footerFile, File pdfFile, File outputFolder, boolean addPageNumbers, boolean addDocumentTag, String documentTag, boolean scaleTheContent, boolean compressTheContent) throws IOException {
+    private void processPdfWithOverlapPrevention(
+            File headerFile, File footerFile, File pdfFile, File outputFolder,
+            boolean addPageNumbers, boolean addDocumentTag, String documentTag,
+            boolean scaleTheContent, boolean compressTheContent
+    ) throws IOException {
+
         validateRequest(headerFile, footerFile, pdfFile, outputFolder);
 
         if (scaleTheContent == compressTheContent) {
+            logger.error("Invalid adjustment option selected: scaleTheContent={}; compressTheContent={}", scaleTheContent, compressTheContent);
             throw new IllegalArgumentException("Select either Scale Content or Compress Content.");
         }
 
-        try (PDDocument sourceDocument = Loader.loadPDF(pdfFile); PDDocument outputDocument = new PDDocument()) {
-            System.out.println("Overlap Prevention Mode Enabled");
+        logger.info("Initiating PDF rendering workspace under Overlap Prevention Mode.");
+        try (PDDocument sourceDocument = Loader.loadPDF(pdfFile);
+             PDDocument outputDocument = new PDDocument()) {
 
             settingsService.loadSettings();
+
             float headerHeight = settingsService.getHeaderHeight();
             float footerHeight = settingsService.getFooterHeight();
-
-            // ==================================================
-            // Overlap Prevention Settings
-            // ==================================================
             float contentMargin = 0f;
             float headerSafetyGap = 1f;
-
-            // 0 = No footer overlap, 20 = Slight overlap, 50 = Aggressive overlap
             float footerOverlapAllowance = 10f;
-            // ==================================================
 
             LayerUtility layerUtility = new LayerUtility(outputDocument);
             PDImageXObject headerImage = PDImageXObject.createFromFile(headerFile.getAbsolutePath(), outputDocument);
@@ -162,16 +170,20 @@ public class PdfProcessorService {
             File outputFile = getUniqueOutputFile(outputFolder, outputFileName);
 
             outputDocument.save(outputFile);
-            System.out.println("PDF Generated Successfully : " + outputFile.getAbsolutePath());
+            logger.info("Modified PDF successfully generated and flushed onto path: {}", outputFile.getAbsolutePath());
         }
     }
 
     /**
-     * Executes standard branding injections, stamping asset graphic overlays directly
-     * on top of original data layouts without modifying original dimensions.
+     * Executes standard template overlay rendering without modifying underlying canvas dimensions.
      */
-    private void processPdfNormally(File headerFile, File footerFile, File pdfFile, File outputFolder, boolean addPageNumbers, boolean addDocumentTag, String documentTag) throws IOException {
+    private void processPdfNormally(
+            File headerFile, File footerFile, File pdfFile, File outputFolder,
+            boolean addPageNumbers, boolean addDocumentTag, String documentTag
+    ) throws IOException {
+
         validateRequest(headerFile, footerFile, pdfFile, outputFolder);
+        logger.info("Initiating PDF rendering workspace under Standard Overlay Mode.");
 
         try (PDDocument document = Loader.loadPDF(pdfFile)) {
             PDImageXObject headerImage = PDImageXObject.createFromFile(headerFile.getAbsolutePath(), document);
@@ -197,17 +209,18 @@ public class PdfProcessorService {
             File outputFile = getUniqueOutputFile(outputFolder, outputFileName);
 
             document.save(outputFile);
-            System.out.println("PDF Generated Successfully : " + outputFile.getAbsolutePath());
+            logger.info("Branded PDF successfully generated and flushed onto path: {}", outputFile.getAbsolutePath());
         }
     }
 
     /**
-     * Appends header template images to the top coordinate space of the page layout.
+     * Blits a header template image onto the upper bounds of the target page media layout box.
      */
     private void addHeader(PDDocument document, PDPage page, PDImageXObject image) throws IOException {
         PDRectangle pageSize = page.getMediaBox();
         float pageWidth = pageSize.getWidth();
         float pageHeight = pageSize.getHeight();
+
         settingsService.loadSettings();
         float headerHeight = settingsService.getHeaderHeight();
 
@@ -217,20 +230,22 @@ public class PdfProcessorService {
     }
 
     /**
-     * Appends footer template images to the baseline origin coordinates of the page layout.
+     * Blits a footer template image onto the zero-origin baseline bounds of the target page layout box.
      */
     private void addFooter(PDDocument document, PDPage page, PDImageXObject image) throws IOException {
         PDRectangle pageSize = page.getMediaBox();
         float pageWidth = pageSize.getWidth();
+
         settingsService.loadSettings();
+        float footerHeight = settingsService.getFooterHeight();
 
         try (PDPageContentStream contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
-            contentStream.drawImage(image, 0, 0, pageWidth, settingsService.getFooterHeight());
+            contentStream.drawImage(image, 0, 0, pageWidth, footerHeight);
         }
     }
 
     /**
-     * Calculates textual tracking metrics to center-align pagination indices strings onto bottom pages.
+     * Calculates textual tracking offsets to push a dynamic center-aligned pagination footer string onto a page.
      */
     private void addPageNumber(PDDocument document, PDPage page, int currentPage, int totalPages) throws IOException {
         String pageNumberText = String.format("Page %d of %d", currentPage, totalPages);
@@ -251,76 +266,28 @@ public class PdfProcessorService {
     }
 
     /**
-     * Verifies existence assertions across file inputs and directories, throwing descriptive errors on breach.
-     */
-    private void validateRequest(File headerFile, File footerFile, File pdfFile, File outputFolder) {
-        if (headerFile == null || !headerFile.exists()) {
-            throw new IllegalArgumentException("Header template not found.");
-        }
-        if (footerFile == null || !footerFile.exists()) {
-            throw new IllegalArgumentException("Footer template not found.");
-        }
-        if (pdfFile == null || !pdfFile.exists()) {
-            throw new IllegalArgumentException("PDF file not found.");
-        }
-        if (outputFolder == null || !outputFolder.exists()) {
-            throw new IllegalArgumentException("Output folder not found.");
-        }
-    }
-
-    /**
-     * Simple utility trimmer parsing extension dots to isolate base naming tokens from filenames.
-     */
-    private String removeExtension(String fileName) {
-        int lastDotIndex = fileName.lastIndexOf('.');
-        if (lastDotIndex > 0) {
-            return fileName.substring(0, lastDotIndex);
-        }
-        return fileName;
-    }
-
-    /**
-     * Injects a stylized classification metadata tag wrapped inside a custom
-     * stroked bounding box into the lower margin coordinates of the target page.
-     * <p>
-     * Computes textual widths dynamically using font metrics, adds defensive horizontal
-     * and vertical padding constraints, strokes an outline rect framework, and renders
-     * the upper-cased classification text cleanly centered over the target coordinates.
-     * </p>
-     *
-     * @param document    the active PDDocument source container
-     * @param page        the page canvas layer where metadata branding is written
-     * @param documentTag the raw descriptive tag text sequence to apply
-     * @throws IOException if a failure occurs while appending bytes into the page stream
+     * Injects an uppercase text classification metadata string encapsulated by a black border box layout.
      */
     private void addDocumentTag(PDDocument document, PDPage page, String documentTag) throws IOException {
+        if (documentTag == null || documentTag.trim().isEmpty()) {
+            return;
+        }
 
         PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
         String displayTag = documentTag.toUpperCase();
         float fontSize = 8f;
 
-        // Calculate visual bounding boundaries based on text string dimensions
         float textWidth = font.getStringWidth(displayTag) / 1000 * fontSize;
         float boxWidth = textWidth + (TAG_PADDING_X * 2);
         float boxHeight = fontSize + (TAG_PADDING_Y * 2);
 
-        // Fixed positional coordinates on lower page canvas boundary margins
         float x = 10f;
         float y = 45f;
 
-        try (PDPageContentStream contentStream = new PDPageContentStream(
-                document,
-                page,
-                PDPageContentStream.AppendMode.APPEND,
-                true,
-                true
-        )) {
-
-            // Render Border Rectangle Outline Layer
+        try (PDPageContentStream contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
             contentStream.addRect(x, y, boxWidth, boxHeight);
             contentStream.stroke();
 
-            // Render Text Payload Layer Centered over Content Block
             contentStream.beginText();
             contentStream.setFont(font, fontSize);
             contentStream.newLineAtOffset(x + TAG_PADDING_X, y + TAG_PADDING_Y + 1);
@@ -330,62 +297,21 @@ public class PdfProcessorService {
     }
 
     /**
-     * Resolves write conflicts incrementally by appending indexing tokens to output filenames.
+     * Processes a PDF document by extending the physical media bounding box boundaries to clear room for graphic assets.
      */
-    private File getUniqueOutputFile(File outputFolder, String outputFileName) {
-        File outputFile = new File(outputFolder, outputFileName);
-        if (!outputFile.exists()) {
-            return outputFile;
-        }
-        String baseName = outputFileName.substring(0, outputFileName.lastIndexOf(".pdf"));
-        int counter = 1;
-        while (true) {
-            File candidate = new File(outputFolder, baseName + "_" + counter + ".pdf");
-            if (!candidate.exists()) {
-                return candidate;
-            }
-            counter++;
-        }
-    }
-
-    /**
-     * Calculates the uniform height ratio multiplier required to compress vertical space.
-     */
-    private float calculateScaleFactor(float pageHeight, float headerHeight, float footerHeight) {
-        float availableHeight = pageHeight - headerHeight - footerHeight;
-        return availableHeight / pageHeight;
-    }
-
-    /**
-     * Processes a PDF document using page canvas expansion to prevent branding overlap.
-     * <p>
-     * Instead of scaling down or compressing the original document layers, this mode
-     * mathematically stretches the physical height boundaries of each page canvas by
-     * adding the exact header and footer height values. It then shifts the original
-     * content upward via an affine translation matrix, leaving pristine, uncompressed
-     * gaps at the top and bottom explicitly for the brand graphics.
-     * </p>
-     *
-     * @param headerFile     the physical image file applied as the template header layer
-     * @param footerFile     the physical image file applied as the template footer layer
-     * @param pdfFile        the origin source PDF document file reference
-     * @param outputFolder   the destination directory target where modifications are saved
-     * @param addPageNumbers toggle flag specifying whether dynamic page indices are stamped
-     * @param addDocumentTag toggle flag specifying whether dynamic security tags are stamped
-     * @param documentTag    the descriptive text classification metadata tag applied to files
-     * @throws IOException if file read/write mutations on underlying file streams fail
-     */
-    private void processPdfWithPageExpansion(File headerFile, File footerFile, File pdfFile, File outputFolder,
-                                             boolean addPageNumbers, boolean addDocumentTag, String documentTag) throws IOException {
+    private void processPdfWithPageExpansion(
+            File headerFile, File footerFile, File pdfFile, File outputFolder,
+            boolean addPageNumbers, boolean addDocumentTag, String documentTag
+    ) throws IOException {
 
         validateRequest(headerFile, footerFile, pdfFile, outputFolder);
+        logger.info("Initiating PDF rendering workspace under Canvas Page Expansion Mode.");
 
         try (PDDocument sourceDocument = Loader.loadPDF(pdfFile);
              PDDocument outputDocument = new PDDocument()) {
 
-            System.out.println("Increase Page Size Mode Enabled");
-
             settingsService.loadSettings();
+
             float headerHeight = settingsService.getHeaderHeight();
             float footerHeight = settingsService.getFooterHeight();
 
@@ -401,7 +327,6 @@ public class PdfProcessorService {
                 float pageWidth = originalPageSize.getWidth();
                 float pageHeight = originalPageSize.getHeight();
 
-                // Compute expanded canvas boundaries
                 float newPageHeight = pageHeight + headerHeight + footerHeight;
                 PDRectangle expandedPageSize = new PDRectangle(pageWidth, newPageHeight);
 
@@ -413,7 +338,6 @@ public class PdfProcessorService {
                 try (PDPageContentStream contentStream = new PDPageContentStream(outputDocument, newPage)) {
                     contentStream.saveGraphicsState();
 
-                    // Shift the original content block precisely above the new footer area
                     AffineTransform transform = new AffineTransform();
                     transform.translate(0, footerHeight);
                     contentStream.transform(new Matrix(transform));
@@ -422,28 +346,73 @@ public class PdfProcessorService {
                     contentStream.restoreGraphicsState();
                 }
 
-                // Append static overlay layouts on the fresh canvas boundaries
                 addHeader(outputDocument, newPage, headerImage);
                 addFooter(outputDocument, newPage, footerImage);
 
                 if (addPageNumbers) {
                     addPageNumber(outputDocument, newPage, currentPage, totalPages);
                 }
-
                 if (addDocumentTag) {
                     addDocumentTag(outputDocument, newPage, documentTag);
                 }
-
                 currentPage++;
             }
 
-            // Resolve file conflicts and save output
             String outputFileName = removeExtension(pdfFile.getName()) + "_" + settingsService.getCompanyName() + ".pdf";
             File outputFile = getUniqueOutputFile(outputFolder, outputFileName);
 
             outputDocument.save(outputFile);
-            System.out.println("PDF Generated Successfully : " + outputFile.getAbsolutePath());
+            logger.info("Expanded canvas PDF successfully generated and flushed onto path: {}", outputFile.getAbsolutePath());
         }
     }
 
+    /**
+     * Assures context integrity validation rules before instantiating document transformations.
+     */
+    private void validateRequest(File headerFile, File footerFile, File pdfFile, File outputFolder) {
+        if (headerFile == null || !headerFile.exists()) {
+            logger.error("Validation failed: Header image resource missing or empty.");
+            throw new IllegalArgumentException("Header template not found.");
+        }
+        if (footerFile == null || !footerFile.exists()) {
+            logger.error("Validation failed: Footer image resource missing or empty.");
+            throw new IllegalArgumentException("Footer template not found.");
+        }
+        if (pdfFile == null || !pdfFile.exists()) {
+            logger.error("Validation failed: Input source PDF file pointer unresolved.");
+            throw new IllegalArgumentException("PDF file not found.");
+        }
+        if (outputFolder == null || !outputFolder.exists()) {
+            logger.error("Validation failed: Output storage location folder target not found.");
+            throw new IllegalArgumentException("Output folder not found.");
+        }
+    }
+
+    private String removeExtension(String fileName) {
+        if (fileName == null) {
+            return "";
+        }
+        int lastDotIndex = fileName.lastIndexOf('.');
+        return (lastDotIndex > 0) ? fileName.substring(0, lastDotIndex) : fileName;
+    }
+
+    /**
+     * Resolves write execution race conditions inside directory trees by incrementally index-tagging filenames.
+     */
+    private File getUniqueOutputFile(File outputFolder, String outputFileName) {
+        File outputFile = new File(outputFolder, outputFileName);
+        if (!outputFile.exists()) {
+            return outputFile;
+        }
+
+        String baseName = removeExtension(outputFileName);
+        int counter = 1;
+        while (true) {
+            File candidate = new File(outputFolder, baseName + "_" + counter + ".pdf");
+            if (!candidate.exists()) {
+                return candidate;
+            }
+            counter++;
+        }
+    }
 }

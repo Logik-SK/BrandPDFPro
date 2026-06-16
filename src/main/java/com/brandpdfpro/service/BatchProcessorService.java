@@ -1,56 +1,87 @@
 package com.brandpdfpro.service;
 
+import com.brandpdfpro.controller.MainController;
+import com.brandpdfpro.model.ProcessingRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 
 /**
- * Service responsible for managing batch processing tasks.
- * Iterates through directories to discover target PDF assets and delegates them
- * individually to the foundational processing service for brand decoration.
+ * Service responsible for managing batch processing tasks across directory trees.
  */
 public class BatchProcessorService {
 
-    /** Core engine instance utilized to apply branding modifications to singular files. */
+    private static final Logger logger = LoggerFactory.getLogger(BatchProcessorService.class);
+
     private final PdfProcessorService pdfProcessorService = new PdfProcessorService();
 
     /**
-     * Discovers all individual PDF documents located within a given directory and subjects them
-     * sequentially to the downstream processing pipeline with uniform customization settings.
+     * Unpacks a batch processing request capsule and routes it directly to the multi-file execution engine.
      *
-     * @param headerFile            the physical image file applied as the template header layer
-     * @param footerFile            the physical image file applied as the template footer layer
-     * @param inputFolder           the origin directory target queried for individual PDF matches
-     * @param outputFolder          the destination directory target where modifications are saved
-     * @param addPageNumbers        toggle flag specifying whether dynamic page indices are stamped
-     * @param addDocumentTag        toggle flag specifying whether dynamic security tags are stamped
-     * @param documentTag           the descriptive text classification metadata tag applied to files
-     * @param preventOverlap        toggle flag specifying whether bounding overflow logic is run
-     * @param scaleTheContent       toggle flag specifying content layout scaling adjustments
-     * @param compressTheContent     toggle flag specifying content structure compression rules
-     * @return the total count of successfully targeted and processed PDF documents
+     * @throws Exception if an unhandled structural file error occurs during batch execution loops
+     */
+    public int processFolder(ProcessingRequest request, ProgressCallback callback) throws Exception {
+        return processFolder(
+                request.getHeaderFile(),
+                request.getFooterFile(),
+                request.getInputFolder(),
+                request.getOutputFolder(),
+                request.isAddPageNumbers(),
+                request.isAddDocumentTag(),
+                request.getDocumentTag(),
+                request.isPreventOverlap(),
+                request.isScaleTheContent(),
+                request.isCompressTheContent(),
+                request.isIncreasePageSize(),
+                callback
+        );
+    }
+
+    /**
+     * Discovers all individual PDF documents located within a given directory and processes them sequentially.
+     *
      * @throws IllegalArgumentException if the targeted directory contains zero matching PDF assets
      * @throws Exception                 if an unhandled structural file error occurs during writing
      */
-    public int processFolder(File headerFile, File footerFile, File inputFolder, File outputFolder, boolean addPageNumbers,
-                             boolean addDocumentTag, String documentTag, boolean preventOverlap, boolean scaleTheContent,
-                             boolean compressTheContent,boolean increasePageSize, ProgressCallback callback) throws Exception {
+    public int processFolder(
+            File headerFile, File footerFile, File inputFolder, File outputFolder,
+            boolean addPageNumbers, boolean addDocumentTag, String documentTag,
+            boolean preventOverlap, boolean scaleTheContent, boolean compressTheContent,
+            boolean increasePageSize, ProgressCallback callback
+    ) throws Exception {
 
-        File[] pdfFiles = inputFolder.listFiles(file -> file.isFile() && file.getName().toLowerCase().endsWith(".pdf"));
+        logger.info("Scanning directory for processing targets: {}", inputFolder.getAbsolutePath());
+
+        File[] pdfFiles = inputFolder.listFiles(file ->
+                file.isFile() && file.getName().toLowerCase().endsWith(".pdf")
+        );
 
         if (pdfFiles == null || pdfFiles.length == 0) {
+            logger.warn("Batch execution aborted. Target directory holds no matching PDF structures: {}", inputFolder.getPath());
             throw new IllegalArgumentException("No PDF files found in selected folder.");
         }
+
+        logger.info("Batch discovery finished. Total files matched for pipeline branding: {}", pdfFiles.length);
 
         int processed = 0;
         for (File pdfFile : pdfFiles) {
             processed++;
+
             if (callback != null) {
                 callback.updateProgress(processed, pdfFiles.length, pdfFile.getName());
             }
-            System.out.println("Processing : " + pdfFile.getName());
-            // Note: Original code logic maps 'scaleTheContent' to both of the trailing boolean parameters.
-            pdfProcessorService.processPdf(headerFile, footerFile, pdfFile, outputFolder, addPageNumbers, addDocumentTag, documentTag, preventOverlap, scaleTheContent, scaleTheContent,increasePageSize);
+
+            logger.info("Processing file [{}/{}]: {}", processed, pdfFiles.length, pdfFile.getName());
+
+            pdfProcessorService.processPdf(
+                    headerFile, footerFile, pdfFile, outputFolder, addPageNumbers,
+                    addDocumentTag, documentTag, preventOverlap, scaleTheContent,
+                    compressTheContent, increasePageSize
+            );
         }
 
+        logger.info("Batch processing sequence finished successfully. Total modified: {}", pdfFiles.length);
         return pdfFiles.length;
     }
 }

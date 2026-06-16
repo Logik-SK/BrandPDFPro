@@ -1,0 +1,355 @@
+/* ==========================================================================
+   1. GLOBAL & ROOT STYLES
+   ========================================================================== */
+.root {
+    -fx-background-color: #121216;
+    -fx-font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.separator .line { 
+    -fx-border-color: #2a2a35; 
+}
+
+/* ==========================================================================
+   2. CONTAINERS & THEME VARIABLE TOKENS
+   ========================================================================== */
+.content-area, .main-pane {
+    -fx-background-color: #121216;
+    
+    /* Semantic Danger Tokens (Soft Coral Pastel Red) */
+    -color-danger-bg: #ff6b6b;
+    -color-danger-hover: #fa5252;
+    -color-danger-text: #1c1c1e;
+
+    /* Semantic Action Load Profile Tokens (Muted Dark Emerald) */
+    -color-load-bg: #1e3a2f;
+    -color-load-hover: #2d5a45;
+    -color-load-text: #81c995;
+    -color-load-border: #375a4b;
+}
+
+/* ==========================================================================
+   3. NAVIGATION & SIDEBAR ELEMENTS
+   ========================================================================== */
+.sidebar {
+    -fx-background-color: #1a1a22;
+    -fx-border-color: #2a2a35;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.sidebar-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+    -fx-padding: 0 0 5px 0;
+}
+
+.theme-toggle-btn {
+    -fx-background-color: #2d2d3d;
+    -fx-text-fill: #00ebc7;
+    -fx-border-color: #3d3d5d;
+    -fx-border-radius: 20px;
+    -fx-background-radius: 20px;
+    -fx-padding: 6px 12px;
+    -fx-font-size: 11px;
+    -fx-cursor: hand;
+}
+
+.theme-toggle-btn:hover {
+    -fx-background-color: #3d3d5d;
+}
+
+.sidebar-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #a0a0b0;
+    -fx-alignment: center-left;
+    -fx-padding: 12px 16px;
+    -fx-font-size: 13px;
+    -fx-background-radius: 6px;
+    -fx-cursor: hand;
+}
+
+.sidebar-btn:hover {
+    -fx-background-color: #252533;
+    -fx-text-fill: #ffffff;
+}
+
+.sidebar-btn:focused, .sidebar-btn.active {
+    -fx-background-color: #3f51b5;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+   4. TYPOGRAPHY & LABELS
+   ========================================================================== */
+.label {
+    -fx-text-fill: #e1e1e6;
+    -fx-font-size: 13px;
+}
+
+.section-header {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+   5. INTERACTIVE FORM CONTROLS
+   ========================================================================== */
+/* Text Fields */
+.text-field {
+    -fx-background-color: #1e1e26;
+    -fx-text-fill: #ffffff;
+    -fx-prompt-text-fill: #666675;
+    -fx-border-color: #333344;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 8px 12px;
+}
+
+.text-field:focused {
+    -fx-border-color: #3f51b5;
+    -fx-background-color: #222230;
+}
+
+.text-field:disabled {
+    -fx-opacity: 1.0;
+    -fx-background-color: #16161f;
+    -fx-border-color: #3a3a4c;
+    -fx-text-fill: #a0a0b0;
+}
+
+/* Combo Boxes & Control Overrides */
+.combo-box {
+    -fx-background-color: #1e1e26;
+    -fx-border-color: #333344;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: #ffffff;
+    -fx-padding: 6px 12px;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.combo-box .arrow {
+    -fx-background-color: #a0a0b0;
+}
+
+.combo-box:disabled {
+    -fx-opacity: 1.0;
+    -fx-background-color: #16161f;
+    -fx-border-color: #3a3a4c;
+}
+
+.combo-box:disabled .list-cell {
+    -fx-text-fill: #a0a0b0;
+}
+
+.combo-box:disabled .arrow {
+    -fx-background-color: #666675;
+}
+
+/* Dropdown Context Popup Layer (Fixes invisible text bugs in dark components) */
+.combo-box-popup .list-view {
+    -fx-background-color: #1e1e26;
+    -fx-border-color: #333344;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: #1e1e26;
+    -fx-text-fill: #ffffff;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: #3f51b5;
+    -fx-text-fill: #ffffff;
+}
+
+/* Checkboxes */
+.check-box .box {
+    -fx-background-color: #1e1e26;
+    -fx-border-color: #333344;
+    -fx-border-radius: 3px;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: #3f51b5;
+}
+
+.check-box .label, .radio-button .label {
+    -fx-text-fill: #cbd5e1;
+    -fx-padding: 0 0 0 6px;
+}
+
+/* Radio Buttons */
+.radio-button .radio {
+    -fx-background-color: #1e1e26;
+    -fx-border-color: #333344;
+}
+
+.radio-button:selected .dot {
+    -fx-background-color: #3f51b5;
+}
+
+/* Disabled Form Option Elements States */
+.check-box:disabled, .radio-button:disabled {
+    -fx-opacity: 1.0;
+}
+
+.check-box:disabled .box, .radio-button:disabled .radio {
+    -fx-background-color: #16161f;
+    -fx-border-color: #3a3a4c;
+}
+
+.check-box:disabled .label, .radio-button:disabled .label {
+    -fx-text-fill: #8a95a5;
+}
+
+/* ==========================================================================
+   6. BUTTON UTILITIES & HARDENED DARK VARIATIONS
+   ========================================================================== */
+/* Global Base Button Class (Slate Charcoal Structure) */
+.button {
+    -fx-background-color: #2a2a35;
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #3a3a4c;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #343444;
+    -fx-text-fill: #ffffff;
+}
+
+.button:disabled {
+    -fx-opacity: 1.0;
+    -fx-background-color: #1c1c24;
+    -fx-text-fill: #7c7c8c;
+    -fx-border-color: #2a2a35;
+    -fx-cursor: default;
+}
+
+/* Primary Form Action (Deep Indigo) */
+.btn-primary {
+    -fx-background-color: #3f51b5 !important;
+    -fx-text-fill: #ffffff !important;
+    -fx-border-color: #5c6bc0 !important;
+    -fx-font-weight: bold;
+}
+
+.btn-primary:hover {
+    -fx-background-color: #303f9f !important;
+    -fx-text-fill: #ffffff !important;
+}
+
+/* Secondary Action (Deep Forest Emerald Green) */
+.btn-secondary {
+    -fx-background-color: #2e7d32 !important;
+    -fx-text-fill: #ffffff !important;
+    -fx-border-color: #388e3c !important;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: #1b5e20 !important;
+    -fx-text-fill: #ffffff !important;
+}
+
+/* Destructive / Danger Action (Pastel Coral Red with High Contrast Text) */
+.btn-danger {
+    -fx-background-color: -color-danger-bg !important;
+    -fx-text-fill: -color-danger-text !important;
+    -fx-border-color: #fa5252 !important;
+    -fx-font-weight: bold;
+    -fx-background-radius: 4px;
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.btn-danger:hover {
+    -fx-background-color: -color-danger-hover !important;
+    -fx-text-fill: -color-danger-text !important;
+}
+
+.btn-danger:focused {
+    -fx-background-color: derive(#ff6b6b, -20%), #ff6b6b !important;
+    -fx-background-insets: -1, 1;
+}
+
+/* Profile Load Custom Action (Premium Muted Dark Teal) */
+.btn-action-load {
+    -fx-background-color: -color-load-bg !important;
+    -fx-text-fill: -color-load-text !important;
+    -fx-border-color: -color-load-border !important;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.btn-action-load:hover {
+    -fx-background-color: -color-load-hover !important;
+    -fx-text-fill: -color-load-text !important;
+}
+
+/* ==========================================================================
+   7. FOOTER APPLICATION STATUS HUD
+   ========================================================================== */
+.status-bar-container {
+    -fx-background-color: linear-gradient(to right, #1a1a24, #121218);
+    -fx-border-color: #252535 transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.status-bar-label {
+    -fx-font-family: 'Consolas', monospace;
+    -fx-font-size: 12px;
+    -fx-text-fill: #00ffc4;
+    -fx-font-weight: bold;
+}
+
+.progress-bar .bar {
+    -fx-background-color: #00ffc4;
+    -fx-background-radius: 4px;
+}
+
+.progress-bar .track {
+    -fx-background-color: #222230;
+    -fx-background-radius: 4px;
+}
+
+.progress-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #e1e1e6;
+}
+.sub-header {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+.status-bar-version {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94A3B8;
+    -fx-font-weight: bold;
+}

@@ -1,19 +1,28 @@
 package com.brandpdfpro.app;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Secondary launch entry point for the application.
- * This class serves as a safe bypass launcher to prevent runtime issues
- * when running JavaFX applications packaged into executable JAR files
- * without modular arguments.
  */
 public class Launcher {
 
-    /**
-     * Delegates application execution directly to the main JavaFX application class.
-     *
-     * @param args command-line arguments passed to the application
-     */
+    private static final Logger logger = LoggerFactory.getLogger(Launcher.class);
+
     public static void main(String[] args) {
-        BrandPDFProApp.main(args);
+        logger.info("Initializing JVM bootstrap protocol [System Version: 2026.1]");
+
+        long startTime = System.currentTimeMillis();
+
+        try {
+            logger.info("Handing off thread control to JavaFX runtime engine...");
+            BrandPDFProApp.main(args);
+
+        } catch (Exception ex) {
+            long duration = System.currentTimeMillis() - startTime;
+            logger.error("Application lifecycle aborted after {}ms due to fatal error: {}", duration, ex.getMessage(), ex);
+            System.exit(1);
+        }
     }
 }
