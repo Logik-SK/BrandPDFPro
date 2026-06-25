@@ -9,7 +9,7 @@ public final class AppConstants {
     // =========================================================
     // Application Information
     // =========================================================
-    public static final String APP_VERSION = "1.4.0";
+    public static final String APP_VERSION = "1.5.0";
     public static final String COMPANY_NAME = "Logik SK";
     public static final String COPYRIGHT = "© 2026 Logik SK. All Rights Reserved.";
     public static final String SETTINGS_FILE = "settings.properties";

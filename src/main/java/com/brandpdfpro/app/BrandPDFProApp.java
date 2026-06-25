@@ -5,7 +5,11 @@ import com.brandpdfpro.exception.ProcessingException;
 import com.brandpdfpro.exception.ValidationException;
 import com.brandpdfpro.model.ProcessingProfile;
 import com.brandpdfpro.model.ProcessingRequest;
-import com.brandpdfpro.service.*;
+import com.brandpdfpro.model.license.LicenseInfo;
+import com.brandpdfpro.service.AppConfigService;
+import com.brandpdfpro.service.FileService;
+import com.brandpdfpro.service.ProgressCallback;
+import com.brandpdfpro.service.license.ActivationManager;
 import com.brandpdfpro.util.AppConstants;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -17,6 +21,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
@@ -44,6 +50,7 @@ public class BrandPDFProApp extends Application {
     private final FileService fileService = new FileService();
     private final AppConfigService appConfigService = new AppConfigService();
     private final MainController mainController = new MainController();
+    private final ActivationManager activationManager = new ActivationManager();
 
     // =========================================================================
     // View Containers & UI Components
@@ -64,7 +71,7 @@ public class BrandPDFProApp extends Application {
     private Node settingsPage;
     private Node licensePage;
     private Node aboutPage;
-
+    private AppPage currentPage = AppPage.PROCESS;
     private TextField headerField;
     private TextField footerField;
     private TextField pdfField;
@@ -73,7 +80,10 @@ public class BrandPDFProApp extends Application {
     private TextField companyNameField;
     private TextField footerHeightField;
     private TextField inputFolderField;
-
+    // License Page Controls
+    private TextArea activationKeyArea;
+    private Button activateLicenseBtn;
+    private Button copyMachineIdBtn;
     // Control Buttons
     private Button headerBtn;
     private Button footerBtn;
@@ -85,7 +95,6 @@ public class BrandPDFProApp extends Application {
     private Button saveProfileBtn;
     private Button loadProfileBtn;
     private Button deleteProfileBtn;
-
     // Checkboxes and ComboBoxes
     private CheckBox pageNumberCheckBox;
     private CheckBox preventOverlapCheckBox;
@@ -93,12 +102,10 @@ public class BrandPDFProApp extends Application {
     private CheckBox documentTagCheckBox;
     private ComboBox<String> documentTagComboBox;
     private ComboBox<String> profileComboBox;
-
     // Radio Buttons (Mutually Exclusive)
     private RadioButton scaleContentRadio;
     private RadioButton compressContentRadio;
     private RadioButton increasePageSizeRadio;
-
     // Status Indicators & Screen Nodes
     private Label statusLabel;
     private ProgressBar progressBar;
@@ -206,18 +213,39 @@ public class BrandPDFProApp extends Application {
         aboutPageBtn.setOnAction(e -> setActivePage(aboutPage, aboutPageBtn));
 
         themeToggleBtn.setOnAction(e -> applyTheme(!themeToggleBtn.isSelected()));
+
+        if (copyMachineIdBtn != null) {
+            copyMachineIdBtn.setOnAction(e -> copyMachineId());
+        }
+
+        if (activateLicenseBtn != null) {
+            activateLicenseBtn.setOnAction(e -> activateLicense());
+        }
     }
 
     private void setActivePage(Node page, Button activeBtn) {
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(page);
+
+        contentArea.getChildren().setAll(page);
 
         processPageBtn.getStyleClass().remove("active");
         profilesPageBtn.getStyleClass().remove("active");
         settingsPageBtn.getStyleClass().remove("active");
         licensePageBtn.getStyleClass().remove("active");
         aboutPageBtn.getStyleClass().remove("active");
+
         activeBtn.getStyleClass().add("active");
+
+        if (page == processPage) {
+            currentPage = AppPage.PROCESS;
+        } else if (page == profilesPage) {
+            currentPage = AppPage.PROFILES;
+        } else if (page == settingsPage) {
+            currentPage = AppPage.SETTINGS;
+        } else if (page == licensePage) {
+            currentPage = AppPage.LICENSE;
+        } else if (page == aboutPage) {
+            currentPage = AppPage.ABOUT;
+        }
     }
 
     /**
@@ -653,10 +681,6 @@ public class BrandPDFProApp extends Application {
         }
     }
 
-    // =========================================================================
-    // Layout Factory Generation Pipelines
-    // =========================================================================
-
     private VBox createSidebar() {
         VBox sidebar = new VBox(12);
         sidebar.setPadding(new Insets(24, 16, 24, 16));
@@ -690,6 +714,10 @@ public class BrandPDFProApp extends Application {
         sidebar.getChildren().addAll(brandingHeader, themeToggleBtn, new Separator(), processPageBtn, profilesPageBtn, settingsPageBtn, licensePageBtn, aboutPageBtn);
         return sidebar;
     }
+
+    // =========================================================================
+    // Layout Factory Generation Pipelines
+    // =========================================================================
 
     private Node createProcessPage() {
         GridPane grid = new GridPane();
@@ -896,6 +924,7 @@ public class BrandPDFProApp extends Application {
      * @return a structured JavaFX Node containing licensing configurations and text blocks
      */
     private Node createLicensePage() {
+
         logger.debug("Compiling UI component framework for License Management workspace.");
 
         VBox layout = new VBox(15);
@@ -905,52 +934,96 @@ public class BrandPDFProApp extends Application {
         Label titleLabel = new Label("🔑 License Management");
         titleLabel.getStyleClass().add("section-header");
 
-        Label statusLabel = new Label("License Status");
-        statusLabel.getStyleClass().add("form-label");
+        LicenseInfo licenseInfo = activationManager.getActiveLicense();
 
-        Label statusValue = new Label("Community Edition");
-        statusValue.getStyleClass().add("status-info");
+        boolean activated = licenseInfo != null && activationManager.isActivated();
 
-        Label versionLabel = new Label(AppConstants.APP_NAME + " v" + AppConstants.APP_VERSION);
-        versionLabel.getStyleClass().add("form-label");
+        String status = activated ? "🟢 LICENSE ACTIVE" : "🟡 TRIAL EDITION";
+        String licenseType = activated ? licenseInfo.getLicenseType().getDisplayName() : "Community";
+        String customerName = activated ? licenseInfo.getCustomerName() : "-";
+        String customerEmail = activated ? licenseInfo.getCustomerEmail() : "-";
+        String expiryDate = activated ? licenseInfo.getExpiryDate().toString() : "-";
 
-        Label featuresLabel = new Label("""
-                Available Features:
-                
-                • PDF Branding
-                • Header & Footer Templates
-                • Batch Processing
-                • Processing Profiles
-                • Theme Support
-                • Logging & Diagnostics
-                
-                Future Enterprise Features:
-                
-                • License Activation
-                • Online Validation
-                • Team Licensing
-                • Priority Support
-                """);
-        featuresLabel.setWrapText(true);
+        String machineId = activationManager.getMachineId();
 
-        Button activateBtn = new Button("Activate License");
-        activateBtn.getStyleClass().add("primary-button");
-        activateBtn.setDisable(true);
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(12);
 
-        Label comingSoonLabel = new Label("License activation will be available in a future release.");
-        comingSoonLabel.getStyleClass().add("hint-label");
+        int row = 0;
+
+        grid.add(new Label("Status:"), 0, row);
+        grid.add(new Label(status), 1, row++);
+
+        grid.add(new Label("License Type:"), 0, row);
+        grid.add(new Label(licenseType), 1, row++);
+
+        grid.add(new Label("Customer Name:"), 0, row);
+        grid.add(new Label(customerName), 1, row++);
+
+        grid.add(new Label("Customer Email:"), 0, row);
+        grid.add(new Label(customerEmail), 1, row++);
+
+        grid.add(new Label("Expiry Date:"), 0, row);
+        grid.add(new Label(expiryDate), 1, row++);
+
+        grid.add(new Label("Machine ID:"), 0, row);
+
+        TextField machineIdField = new TextField(machineId);
+        machineIdField.setEditable(false);
+        machineIdField.setPrefColumnCount(16);
+        machineIdField.setMaxWidth(180);
+
+        copyMachineIdBtn = new Button("Copy");
+        copyMachineIdBtn.setOnAction(e -> copyMachineId());
+
+        HBox machineBox = new HBox(10, machineIdField, copyMachineIdBtn);
+
+        grid.add(machineBox, 1, row++);
+
+        grid.add(new Label("Application Version:"), 0, row);
+        grid.add(new Label(AppConstants.APP_VERSION), 1, row++);
 
         layout.getChildren().addAll(
                 titleLabel,
                 new Separator(),
-                statusLabel,
-                statusValue,
-                versionLabel,
-                new Separator(),
-                featuresLabel,
-                activateBtn,
-                comingSoonLabel
+                grid
         );
+
+        if (!activated) {
+
+            Separator separator = new Separator();
+
+            Label activationLabel = new Label("Offline License Activation");
+            activationLabel.getStyleClass().add("sub-header");
+
+            activationKeyArea = new TextArea();
+            activationKeyArea.setPromptText("Paste your license key here...");
+            activationKeyArea.setWrapText(true);
+            activationKeyArea.setPrefRowCount(5);
+
+            activateLicenseBtn = new Button("Activate License");
+            activateLicenseBtn.getStyleClass().add("btn-primary");
+            activateLicenseBtn.setOnAction(e -> activateLicense());
+
+            Label noteLabel = new Label(
+                    "To activate BrandPDF Pro:\n\n" +
+                            "1. Copy the Machine ID.\n" +
+                            "2. Send it to the BrandPDF Pro administrator.\n" +
+                            "3. Paste the received License Key.\n" +
+                            "4. Click 'Activate License'."
+            );
+
+            noteLabel.setWrapText(true);
+
+            layout.getChildren().addAll(
+                    separator,
+                    activationLabel,
+                    activationKeyArea,
+                    activateLicenseBtn,
+                    noteLabel
+            );
+        }
 
         return layout;
     }
@@ -994,19 +1067,74 @@ public class BrandPDFProApp extends Application {
 
         Label copyrightLabel = new Label(AppConstants.COPYRIGHT);
 
-        layout.getChildren().addAll(
-                title,
-                new Separator(),
-                appNameLabel,
-                versionLabel,
-                companyLabel,
-                descriptionLabel,
-                new Separator(),
-                featuresLabel,
-                new Separator(),
-                copyrightLabel
-        );
+        layout.getChildren().addAll(title, new Separator(), appNameLabel, versionLabel, companyLabel, descriptionLabel, new Separator(), featuresLabel, new Separator(), copyrightLabel);
 
         return layout;
+    }
+
+    private void copyMachineId() {
+
+        try {
+
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putString(activationManager.getMachineId());
+            clipboard.setContent(content);
+            statusLabel.setText("🟢 Machine ID copied");
+        } catch (Exception ex) {
+            logger.error("Failed to copy machine id", ex);
+            statusLabel.setText("❌ Copy failed");
+        }
+    }
+
+    private void activateLicense() {
+
+        try {
+            String licenseKey = activationKeyArea.getText().trim();
+            if (licenseKey.isEmpty()) {
+                statusLabel.setText("❌ Enter license key");
+                return;
+            }
+            LicenseInfo licenseInfo = activationManager.activateLicense(licenseKey);
+            refreshLicensePage();
+            statusLabel.setText("🟢 License Activated");
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Activation Successful");
+           // alert.setHeaderText(null);
+           // alert.setContentText("License activated successfully.\n\n" + "Please restart BrandPDF Pro.");
+           // alert.showAndWait();
+
+        } catch (Exception ex) {
+            logger.error("License activation failed", ex);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Activation Failed");
+            alert.setHeaderText(null);
+            alert.setContentText(ex.getMessage());
+            alert.showAndWait();
+            statusLabel.setText("❌ Activation Failed");
+        }
+    }
+
+    /**
+     * Refresh License Management page after activation/deactivation.
+     */
+    private void refreshLicensePage() {
+
+        // Recreate the page with latest license information
+        licensePage = createLicensePage();
+
+        // If the user is currently viewing the License page,
+        // refresh it immediately.
+        if (currentPage == AppPage.LICENSE) {
+
+            contentArea.getChildren().setAll(licensePage);
+
+            licensePageBtn.getStyleClass().remove("active");
+            licensePageBtn.getStyleClass().add("active");
+        }
+    }
+
+    private enum AppPage {
+        PROCESS, PROFILES, SETTINGS, LICENSE, ABOUT
     }
 }
